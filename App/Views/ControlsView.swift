@@ -91,7 +91,7 @@ struct ControlsView: View {
                         Text(mode.rawValue).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.menu)
                 .disabled(model.processed == nil)
             }
 
