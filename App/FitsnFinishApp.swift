@@ -11,6 +11,9 @@ extension UTType {
 @main
 struct FitsnFinishApp: App {
     @StateObject private var model = DocumentModel()
+    #if os(macOS) && canImport(Sparkle)
+    @StateObject private var updater = UpdaterModel()
+    #endif
 
     var body: some Scene {
         WindowGroup("FITS n' Finish") {
@@ -21,6 +24,12 @@ struct FitsnFinishApp: App {
                 #endif
         }
         .commands {
+            #if os(macOS) && canImport(Sparkle)
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+            }
+            #endif
             CommandGroup(replacing: .newItem) {
                 Button("Open FITS…") { model.isImporterPresented = true }
                     .keyboardShortcut("o")

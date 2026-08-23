@@ -21,6 +21,21 @@ cp "$BIN_DIR/FitsnFinish" "$APP/Contents/MacOS/FitsnFinish"
 cp "$ROOT/Support/Info.plist" "$APP/Contents/Info.plist"
 print -n "APPL????" > "$APP/Contents/PkgInfo"
 
+# Stamp the version from the VERSION file.
+if [[ -f "$ROOT/VERSION" ]]; then
+  VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
+  /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
+fi
+
+# Embed Sparkle.framework (the executable links it via @rpath/../Frameworks).
+SPARKLE_FRAMEWORK="$(find "$ROOT/.build" -type d -name "Sparkle.framework" -path "*artifacts*" -not -path "*dSYM*" | head -1)"
+if [[ -n "$SPARKLE_FRAMEWORK" ]]; then
+  mkdir -p "$APP/Contents/Frameworks"
+  rm -rf "$APP/Contents/Frameworks/Sparkle.framework"
+  # ditto preserves the framework's Versions symlink structure; cp -R would not.
+  ditto "$SPARKLE_FRAMEWORK" "$APP/Contents/Frameworks/Sparkle.framework"
+fi
+
 # App icon (regenerate with Scripts/generate_icons.sh).
 [[ -f "$ROOT/Support/Icons/AppIcon.icns" ]] \
   && cp "$ROOT/Support/Icons/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"

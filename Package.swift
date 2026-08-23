@@ -17,11 +17,21 @@ var products: [Product] = [
     .library(name: "FitsnFinishCore", targets: ["FitsnFinishCore"]),
 ]
 
+var dependencies: [Package.Dependency] = []
+
 #if os(macOS)
+// Sparkle auto-updates (Developer ID distribution only; the framework is
+// embedded in Contents/Frameworks by Scripts/build.sh). Declared only on
+// macOS hosts so Linux CI never resolves it; the platform condition keeps it
+// out of iOS cross-compiles.
+dependencies.append(.package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"))
 targets.append(
     .executableTarget(
         name: "FitsnFinish",
-        dependencies: ["FitsnFinishCore"],
+        dependencies: [
+            "FitsnFinishCore",
+            .product(name: "Sparkle", package: "Sparkle", condition: .when(platforms: [.macOS])),
+        ],
         path: ".",
         exclude: [
             "build",
@@ -36,7 +46,13 @@ targets.append(
             "fitsnfinish.md",
         ],
         sources: ["App"],
-        resources: [.process("Metal/SubtractEngine.metal")]
+        resources: [.process("Metal/SubtractEngine.metal")],
+        linkerSettings: [
+            .unsafeFlags(
+                ["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"],
+                .when(platforms: [.macOS])
+            ),
+        ]
     )
 )
 products.append(.executable(name: "FitsnFinish", targets: ["FitsnFinish"]))
@@ -49,5 +65,6 @@ let package = Package(
         .iOS(.v17),
     ],
     products: products,
+    dependencies: dependencies,
     targets: targets
 )

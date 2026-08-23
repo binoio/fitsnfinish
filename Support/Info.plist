@@ -4,36 +4,6 @@
 <dict>
 	<key>CFBundleDisplayName</key>
 	<string>FITS n' Finish</string>
-	<key>CFBundleName</key>
-	<string>FITS n' Finish</string>
-	<key>CFBundleIdentifier</key>
-	<string>io.bino.fitsnfinish</string>
-	<key>CFBundleExecutable</key>
-	<string>FitsnFinish</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
-	<key>CFBundleVersion</key>
-	<string>1</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>LSMinimumSystemVersion</key>
-	<string>14.0</string>
-	<key>NSPrincipalClass</key>
-	<string>NSApplication</string>
-	<key>NSHighResolutionCapable</key>
-	<true/>
-	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
-	<key>NSMotionUsageDescription</key>
-	<string>Device motion provides the optical-axis altitude/azimuth heading used by the atmospheric model.</string>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-	<key>UIFileSharingEnabled</key>
-	<true/>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -47,18 +17,52 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleExecutable</key>
+	<string>FitsnFinish</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.bino.fitsnfinish</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>FITS n' Finish</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Device motion provides the optical-axis altitude/azimuth heading used by the atmospheric model.</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>SUFeedURL</key>
+	<string>https://mabino.github.io/fitsnfinish/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>nDAE5HXFYg6pBQbAFtyEObXbHu9N7TM+7zUivRcRqNA=</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
 		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>io.bino.fitsnfinish.fits</string>
-			<key>UTTypeDescription</key>
-			<string>FITS Image</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.data</string>
 				<string>public.image</string>
 			</array>
+			<key>UTTypeDescription</key>
+			<string>FITS Image</string>
+			<key>UTTypeIdentifier</key>
+			<string>io.bino.fitsnfinish.fits</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
