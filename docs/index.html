@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FITS n' Finish — physics-first gradient removal for astrophotography</title>
+<meta name="description" content="Hybrid atmospheric gradient subtraction for macOS and iOS: a deterministic Rayleigh/Mie skyglow model removes the airmass baseline, a low-order surface fit cleans the rest — faint nebulosity survives.">
+<link rel="icon" href="icon.png">
+<style>
+  :root {
+    --bg: #f7f7f9; --fg: #1c1c22; --muted: #5c5c66; --card: #ffffff;
+    --accent: #4a5fc1; --border: #e2e2ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b0d16; --fg: #e8e8ef; --muted: #9a9aa8; --card: #151827;
+      --accent: #8fa1f2; --border: #262a3d;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  main { max-width: 880px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  header { text-align: center; margin-bottom: 3rem; }
+  header img { width: 128px; height: 128px; border-radius: 28px; }
+  h1 { font-size: 2.2rem; margin: 1rem 0 0.25rem; }
+  .tagline { color: var(--muted); font-size: 1.15rem; }
+  .buttons { margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
+  .button {
+    display: inline-block; padding: 0.6rem 1.4rem; border-radius: 10px;
+    text-decoration: none; font-weight: 600;
+    background: var(--accent); color: #fff;
+  }
+  .button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  .req { color: var(--muted); font-size: 0.85rem; margin-top: 0.6rem; }
+  h2 { font-size: 1.45rem; margin: 3rem 0 0.8rem; }
+  p + p { margin-top: 0.8rem; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
+  .compare figure { margin: 0; }
+  .compare img { width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
+  .compare figcaption { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 0.4rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.9rem; margin-top: 1rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem 1.1rem;
+  }
+  .card h3 { font-size: 1.02rem; margin-bottom: 0.35rem; }
+  .card p { color: var(--muted); font-size: 0.93rem; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; }
+  footer { margin-top: 4rem; color: var(--muted); font-size: 0.88rem; text-align: center; }
+  footer a { color: var(--accent); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="icon.png" alt="FITS n' Finish icon" width="128" height="128">
+    <h1>FITS n&rsquo; Finish</h1>
+    <p class="tagline">Physics-first gradient removal for astrophotography, on macOS and iOS.</p>
+    <div class="buttons">
+      <a class="button" href="https://github.com/mabino/fitsnfinish/releases/latest">Download for Mac</a>
+      <a class="button secondary" href="https://github.com/mabino/fitsnfinish">Source on GitHub</a>
+    </div>
+    <p class="req">macOS 14 or later &middot; notarized &middot; auto-updates via Sparkle &middot; MIT license</p>
+  </header>
+
+  <h2>The sky is not a polynomial</h2>
+  <p>
+    Background extraction tools treat your image as an isolated numerical grid:
+    place enough sample boxes, fit a high-order surface, and hope it doesn&rsquo;t
+    swallow your nebulosity. FITS n&rsquo; Finish starts from the physics instead.
+    A deterministic Rayleigh/Mie scattering model &mdash; driven by where the
+    telescope pointed, when, and through what air &mdash; removes the steep,
+    non-linear airmass skyglow first. What remains is gentle enough that a
+    1st or 2nd-degree surface finishes the job, and a surface that gentle
+    <em>cannot</em> conform to faint extended targets. Integrated flux nebula
+    and outer galaxy halos survive by construction.
+  </p>
+
+  <div class="compare">
+    <figure>
+      <img src="before.png" alt="IC 1805 stack before gradient removal: warm skyglow across the frame">
+      <figcaption>Before &mdash; 90&thinsp;min IC&thinsp;1805 stack, warm skyglow cast</figcaption>
+    </figure>
+    <figure>
+      <img src="after.png" alt="Same stack after: neutral, flat background with nebulosity intact">
+      <figcaption>After &mdash; flat, neutral background; the nebula untouched</figcaption>
+    </figure>
+  </div>
+
+  <h2>What the model knows</h2>
+  <div class="grid">
+    <div class="card"><h3>Pointing from your file</h3>
+      <p>WCS plate solutions, RA/Dec cards, capture time, and optics geometry set altitude, field of view, and field rotation automatically on open.</p></div>
+    <div class="card"><h3>Per-channel scattering</h3>
+      <p>Rayleigh&rsquo;s &lambda;<sup>&minus;4</sup> law runs per color channel &mdash; the blue sky gradient is modeled steeper than the red, because it is.</p></div>
+    <div class="card"><h3>Moonlight</h3>
+      <p>Built-in solar and lunar ephemerides add a Krisciunas&ndash;Schaefer scattering term for the moon&rsquo;s position and phase at capture time.</p></div>
+    <div class="card"><h3>Light domes</h3>
+      <p>A directional Garstang glow term points at your nearest city, saved with per-site presets.</p></div>
+    <div class="card"><h3>Long exposures</h3>
+      <p>The prior is averaged across the integration as the target and moon move.</p></div>
+    <div class="card"><h3>Star-proof fitting</h3>
+      <p>Bright-star masking, halo dilation, and sigma-clipped refits keep saturated stars from tilting the surface.</p></div>
+    <div class="card"><h3>All of FITS</h3>
+      <p>Color cubes, multi-HDU files, and every fpack tile compression: RICE, GZIP, HCOMPRESS, PLIO, dithered quantization. WCS survives export.</p></div>
+    <div class="card"><h3>Fast</h3>
+      <p>The whole per-pixel pipeline runs as Metal compute kernels, bit-identical to the CPU reference path.</p></div>
+  </div>
+
+  <h2>Fits your workflow</h2>
+  <p>
+    Use it before stretching, alongside Siril or PixInsight &mdash; open a stack,
+    remove the gradient, export a 16-bit FITS with the WCS intact, and carry on.
+    Rig-and-site presets import and export as plain JSON. Updates arrive
+    in-app with release notes.
+  </p>
+
+  <footer>
+    <p>
+      <a href="https://github.com/mabino/fitsnfinish">GitHub</a> &middot;
+      <a href="https://github.com/mabino/fitsnfinish/releases">Releases</a> &middot;
+      <a href="https://github.com/mabino/fitsnfinish/blob/main/CHANGELOG.md">Changelog</a> &middot;
+      <a href="appcast.xml">Update feed</a>
+    </p>
+    <p>&copy; 2026 Michael Bino &middot; MIT license</p>
+  </footer>
+</main>
+</body>
+</html>
