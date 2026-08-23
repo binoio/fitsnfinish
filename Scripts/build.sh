@@ -21,11 +21,15 @@ cp "$BIN_DIR/FitsnFinish" "$APP/Contents/MacOS/FitsnFinish"
 cp "$ROOT/Support/Info.plist" "$APP/Contents/Info.plist"
 print -n "APPL????" > "$APP/Contents/PkgInfo"
 
-# Stamp the version from the VERSION file.
+# Stamp the marketing version from the VERSION file and a monotonic build
+# number from the commit count — Sparkle compares CFBundleVersion, so it must
+# strictly increase across releases.
 if [[ -f "$ROOT/VERSION" ]]; then
   VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION")"
   /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" "$APP/Contents/Info.plist"
 fi
+BUILD_NUMBER="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$APP/Contents/Info.plist"
 
 # Embed Sparkle.framework (the executable links it via @rpath/../Frameworks).
 SPARKLE_FRAMEWORK="$(find "$ROOT/.build" -type d -name "Sparkle.framework" -path "*artifacts*" -not -path "*dSYM*" | head -1)"
