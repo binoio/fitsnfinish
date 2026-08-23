@@ -4,7 +4,7 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
-## Unreleased
+## 0.3.1 — 2026-08-23
 
 - **Preset Library.** Preset management moved out of Settings into its own
   Preset Library window (Window menu or ⇧⌘P on the Mac; the library button
