@@ -107,9 +107,38 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
         }
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
-            #if os(iOS)
-            manager.requestWhenInUseAuthorization()
-            #endif
+            let status = manager.authorizationStatus
+            switch status {
+            case .notDetermined:
+                manager.requestWhenInUseAuthorization()
+            case .authorizedWhenInUse, .authorizedAlways:
+                manager.requestLocation()
+            case .denied, .restricted:
+                self.continuation = nil
+                continuation.resume(throwing: NSError(
+                    domain: kCLErrorDomain, code: Int(CLError.denied.rawValue),
+                    userInfo: [NSLocalizedDescriptionKey: "Location access denied"]
+                ))
+            @unknown default:
+                manager.requestLocation()
+            }
+        }
+    }
+
+    public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        guard continuation != nil else { return }
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            manager.requestLocation()
+        case .denied, .restricted:
+            continuation?.resume(throwing: NSError(
+                domain: kCLErrorDomain, code: Int(CLError.denied.rawValue),
+                userInfo: [NSLocalizedDescriptionKey: "Location access denied"]
+            ))
+            continuation = nil
+        case .notDetermined:
+            break
+        @unknown default:
             manager.requestLocation()
         }
     }

@@ -4,6 +4,13 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
+## 0.4.1 — 2026-08-23
+
+- **CoreLocation authorization on macOS.** Fixed an issue where clicking
+  "Use live telemetry" on macOS failed to request location permissions,
+  leaving coordinates at zero. Added macOS CoreLocation authorization handling
+  and location entitlements.
+
 ## 0.4.0 — 2026-08-23
 
 - **The physics now reads the sky from your file.** Pointing, field of

@@ -4,7 +4,7 @@ import FitsnFinishCore
 // fnfin: headless FITS n' Finish. The CPU reference pipeline over the same
 // Core the apps use — for stacking-pipeline integration and scripting.
 
-let fnfinVersion = "0.4.0"
+let fnfinVersion = "0.4.1"
 
 func printUsage() {
     print("""

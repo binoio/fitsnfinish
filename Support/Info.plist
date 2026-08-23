@@ -49,6 +49,8 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSLocationUsageDescription</key>
+	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
 	<key>NSMotionUsageDescription</key>
