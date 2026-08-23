@@ -1,0 +1,26 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>FITS n' Finish</title>
+        <item>
+            <title>0.1.0</title>
+            <pubDate>Sun, 23 Aug 2026 09:35:43 -0400</pubDate>
+            <sparkle:version>1</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>FITS n' Finish 0.1.0</h2>
+<p>Initial release.</p>
+<ul>
+<li>Hybrid two-stage gradient removal: a deterministic Rayleigh/Mie atmospheric prior driven by telemetry removes the non-linear airmass baseline, then a low-order (1st/2nd degree) LAPACK polynomial surface cleans residual light domes &mdash; without scooping faint extended targets.</li>
+<li>FITS reader/writer: 8/16/32/&minus;32/&minus;64-bit, big-endian, BZERO/BSCALE, and NAXIS=3 color cubes (smart-telescope RGB stacks) processed per channel.</li>
+<li>Metal preview with per-channel MTF stretch; GPU subtraction kernel with CPU reference fallback.</li>
+<li>Telemetry from CoreLocation and WeatherKit with manual entry fallback.</li>
+<li>16-bit FITS export of the processed frame.</li>
+<li>Sparkle auto-updates.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.1.0/FitsnFinish-0.1.0.zip" length="2846561" type="application/octet-stream" sparkle:edSignature="U19dXVUrHa3HatFd5PP4gsXaLA35+lXay8dmAnbTjGQU0edVy1y97Gm7vg79+r0I8dT5aMegO4taVO9NDQ/WDg=="/>
+        </item>
+    </channel>
+</rss>
