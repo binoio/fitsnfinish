@@ -74,22 +74,6 @@ struct ControlsView: View {
             }
 
             Section {
-                HStack {
-                    Button {
-                        model.undo()
-                    } label: {
-                        Label("Undo", systemImage: "arrow.uturn.backward")
-                    }
-                    .disabled(!model.canUndo)
-                    Button {
-                        model.redo()
-                    } label: {
-                        Label("Redo", systemImage: "arrow.uturn.forward")
-                    }
-                    .disabled(!model.canRedo)
-                    Spacer()
-                }
-
                 Button {
                     model.process()
                 } label: {
@@ -110,9 +94,9 @@ struct ControlsView: View {
 
                 #if !os(macOS)
                 Button {
-                    model.isSettingsPresented = true
+                    model.isPresetLibraryPresented = true
                 } label: {
-                    Label("Settings & Presets", systemImage: "gearshape")
+                    Label("Preset Library", systemImage: "books.vertical")
                 }
                 #endif
             }

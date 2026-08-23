@@ -13,6 +13,9 @@ struct FitsnFinishApp: App {
     @StateObject private var model = DocumentModel()
     @StateObject private var presets = PresetStore()
     #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
+    #if os(macOS)
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
     #endif
     #if os(macOS) && canImport(Sparkle)
@@ -42,21 +45,23 @@ struct FitsnFinishApp: App {
                     .keyboardShortcut("e")
                     .disabled(model.processed == nil)
             }
-            CommandGroup(after: .undoRedo) {
-                Button("Undo Processing Step") { model.undo() }
-                    .keyboardShortcut("z", modifiers: [.command, .option])
-                    .disabled(!model.canUndo)
-                Button("Redo Processing Step") { model.redo() }
-                    .keyboardShortcut("z", modifiers: [.command, .option, .shift])
-                    .disabled(!model.canRedo)
+            #if os(macOS)
+            CommandGroup(after: .windowList) {
+                Button("Preset Library") { openWindow(id: "preset-library") }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
             }
+            #endif
         }
 
         #if os(macOS)
-        Settings {
-            SettingsView()
+        Window("Preset Library", id: "preset-library") {
+            PresetLibraryView()
                 .environmentObject(model)
                 .environmentObject(presets)
+        }
+
+        Settings {
+            SettingsView()
         }
         #endif
     }
@@ -83,6 +88,7 @@ struct FITSDocument: FileDocument {
 
 struct ContentView: View {
     @EnvironmentObject private var model: DocumentModel
+    @Environment(\.undoManager) private var undoManager
     #if !os(macOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -91,10 +97,11 @@ struct ContentView: View {
         layout
             .navigationTitle(model.fileName ?? "FITS n' Finish")
             #if !os(macOS)
-            .sheet(isPresented: $model.isSettingsPresented) {
-                SettingsView()
+            .sheet(isPresented: $model.isPresetLibraryPresented) {
+                PresetLibraryView()
             }
             #endif
+            .onAppear { model.undoManager = undoManager }
             .fileImporter(
                 isPresented: $model.isImporterPresented,
                 allowedContentTypes: [.fits, .data]
@@ -172,7 +179,7 @@ final class DocumentModel: ObservableObject {
     @Published var statusMessage = "Ready"
     @Published var isImporterPresented = false
     @Published var isExporterPresented = false
-    @Published var isSettingsPresented = false
+    @Published var isPresetLibraryPresented = false
 
     // Session-scoped processing history. Entries hold copy-on-write
     // references to run outputs (no pixel copying); entry 0 is always the
@@ -184,6 +191,10 @@ final class DocumentModel: ObservableObject {
     private var history: [HistoryEntry] = [HistoryEntry(planes: nil, label: "Original")]
     @Published private(set) var historyIndex = 0
     private static let historyLimit = 8
+    /// The host window's undo manager: registering here puts processing
+    /// steps on the standard Edit-menu Undo/Redo (⌘Z/⇧⌘Z) and, on iOS, the
+    /// system three-finger and shake gestures.
+    weak var undoManager: UndoManager?
 
     @Published var telemetry = TelemetrySnapshot()
     @Published var degree: PolynomialFitter.Degree = .linear
@@ -219,6 +230,10 @@ final class DocumentModel: ObservableObject {
         historyIndex -= 1
         processed = history[historyIndex].planes
         statusMessage = "Undid to: \(history[historyIndex].label)"
+        undoManager?.registerUndo(withTarget: self) { target in
+            MainActor.assumeIsolated { target.redo() }
+        }
+        undoManager?.setActionName("Gradient Removal")
     }
 
     func redo() {
@@ -226,6 +241,10 @@ final class DocumentModel: ObservableObject {
         historyIndex += 1
         processed = history[historyIndex].planes
         statusMessage = "Redid to: \(history[historyIndex].label)"
+        undoManager?.registerUndo(withTarget: self) { target in
+            MainActor.assumeIsolated { target.undo() }
+        }
+        undoManager?.setActionName("Gradient Removal")
     }
 
     private func recordRun(_ planes: [[Float]], label: String) {
@@ -239,6 +258,10 @@ final class DocumentModel: ObservableObject {
         }
         historyIndex = history.count - 1
         processed = planes
+        undoManager?.registerUndo(withTarget: self) { target in
+            MainActor.assumeIsolated { target.undo() }
+        }
+        undoManager?.setActionName("Gradient Removal")
     }
 
     var exportFileName: String {

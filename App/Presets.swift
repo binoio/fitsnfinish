@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 import FitsnFinishCore
 
 /// A named rig + site combination: everything the engine needs that isn't
@@ -18,7 +19,7 @@ struct ProcessingPreset: Codable, Identifiable, Equatable {
     var physicsStrength: Float
 }
 
-/// UserDefaults-backed preset storage.
+/// UserDefaults-backed preset storage with JSON import/export.
 @MainActor
 final class PresetStore: ObservableObject {
     @Published private(set) var presets: [ProcessingPreset] = []
@@ -32,6 +33,7 @@ final class PresetStore: ObservableObject {
     }
 
     private func persist() {
+        presets.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         if let data = try? JSONEncoder().encode(presets) {
             UserDefaults.standard.set(data, forKey: Self.defaultsKey)
         }
@@ -53,7 +55,6 @@ final class PresetStore: ObservableObject {
         // Same name replaces the existing preset.
         presets.removeAll { $0.name == name }
         presets.append(preset)
-        presets.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         persist()
     }
 
@@ -70,19 +71,112 @@ final class PresetStore: ObservableObject {
         model.statusMessage = "Applied preset “\(preset.name)”"
     }
 
+    func rename(_ preset: ProcessingPreset, to newName: String) {
+        let trimmed = newName.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty,
+              let index = presets.firstIndex(where: { $0.id == preset.id })
+        else { return }
+        presets[index].name = trimmed
+        persist()
+    }
+
     func delete(_ preset: ProcessingPreset) {
         presets.removeAll { $0.id == preset.id }
         persist()
     }
+
+    // MARK: File exchange
+
+    func exportData() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(presets)
+    }
+
+    /// Merges presets from a JSON file; imported presets replace existing
+    /// ones with the same name. Returns the number imported.
+    func importData(_ data: Data) throws -> Int {
+        let imported = try JSONDecoder().decode([ProcessingPreset].self, from: data)
+        for preset in imported {
+            presets.removeAll { $0.name == preset.name }
+            presets.append(preset)
+        }
+        persist()
+        return imported.count
+    }
 }
 
-/// Preset management and app information — the macOS Settings window and
-/// the iOS settings sheet share this view.
-struct SettingsView: View {
+/// JSON file wrapper for preset import/export.
+struct PresetsDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+
+    var data: Data
+
+    init(data: Data) {
+        self.data = data
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
+/// One library row: inline-renamable name, summary, apply/delete.
+private struct PresetRow: View {
     @EnvironmentObject private var model: DocumentModel
     @EnvironmentObject private var store: PresetStore
-    @State private var newPresetName = ""
+    let preset: ProcessingPreset
+    @State private var draftName: String
+
+    init(preset: ProcessingPreset) {
+        self.preset = preset
+        _draftName = State(initialValue: preset.name)
+    }
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                TextField("Name", text: $draftName)
+                    .textFieldStyle(.plain)
+                    .onSubmit { store.rename(preset, to: draftName) }
+                Text(String(
+                    format: "alt %.0f°, FOV %.2f°, RH %.0f%%, β %.3f, degree %d",
+                    preset.targetAltitudeDegrees,
+                    preset.fieldOfViewDegrees,
+                    preset.relativeHumidity * 100,
+                    preset.aerosolOpticalDepth,
+                    preset.degree
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Apply") { store.apply(preset, to: model) }
+                .buttonStyle(.borderless)
+            Button(role: .destructive) {
+                store.delete(preset)
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+        }
+    }
+}
+
+/// The Preset Library: load, save, rename, delete, and exchange presets as
+/// JSON files. Shown as its own window on macOS and a sheet on iOS.
+struct PresetLibraryView: View {
+    @EnvironmentObject private var model: DocumentModel
+    @EnvironmentObject private var store: PresetStore
     @Environment(\.dismiss) private var dismiss
+    @State private var newPresetName = ""
+    @State private var isImporterPresented = false
+    @State private var isExporterPresented = false
+    @State private var statusMessage: String?
 
     var body: some View {
         Form {
@@ -93,30 +187,8 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(store.presets) { preset in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(preset.name)
-                            Text(String(
-                                format: "alt %.0f°, FOV %.2f°, RH %.0f%%, β %.3f, degree %d",
-                                preset.targetAltitudeDegrees,
-                                preset.fieldOfViewDegrees,
-                                preset.relativeHumidity * 100,
-                                preset.aerosolOpticalDepth,
-                                preset.degree
-                            ))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Button("Apply") { store.apply(preset, to: model) }
-                            .buttonStyle(.borderless)
-                        Button(role: .destructive) {
-                            store.delete(preset)
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .buttonStyle(.borderless)
-                    }
+                    PresetRow(preset: preset)
+                        .id(preset.id)
                 }
                 HStack {
                     TextField("New preset name", text: $newPresetName)
@@ -129,11 +201,25 @@ struct SettingsView: View {
                 }
             }
 
-            Section("About") {
-                LabeledContent("Version") {
-                    Text(Bundle.main.object(
-                        forInfoDictionaryKey: "CFBundleShortVersionString"
-                    ) as? String ?? "dev")
+            Section {
+                HStack {
+                    Button {
+                        isImporterPresented = true
+                    } label: {
+                        Label("Import…", systemImage: "square.and.arrow.down")
+                    }
+                    Button {
+                        isExporterPresented = true
+                    } label: {
+                        Label("Export…", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(store.presets.isEmpty)
+                    Spacer()
+                }
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -145,8 +231,68 @@ struct SettingsView: View {
             #endif
         }
         .formStyle(.grouped)
+        .navigationTitle("Preset Library")
+        .fileImporter(
+            isPresented: $isImporterPresented,
+            allowedContentTypes: [.json]
+        ) { result in
+            switch result {
+            case .success(let url):
+                importPresets(from: url)
+            case .failure(let error):
+                statusMessage = "Import failed: \(error.localizedDescription)"
+            }
+        }
+        .fileExporter(
+            isPresented: $isExporterPresented,
+            document: try? PresetsDocument(data: store.exportData()),
+            contentType: .json,
+            defaultFilename: "FitsnFinish-Presets"
+        ) { result in
+            switch result {
+            case .success(let url):
+                statusMessage = "Exported \(store.presets.count) preset(s) to \(url.lastPathComponent)"
+            case .failure(let error):
+                statusMessage = "Export failed: \(error.localizedDescription)"
+            }
+        }
         #if os(macOS)
-        .frame(width: 500, height: 400)
+        .frame(minWidth: 480, minHeight: 360)
+        #endif
+    }
+
+    private func importPresets(from url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            let count = try store.importData(Data(contentsOf: url))
+            statusMessage = "Imported \(count) preset(s)"
+        } catch {
+            statusMessage = "Import failed: \(error.localizedDescription)"
+        }
+    }
+}
+
+/// Settings proper: app information only — presets live in the Preset
+/// Library window.
+struct SettingsView: View {
+    var body: some View {
+        Form {
+            Section("About") {
+                LabeledContent("Version") {
+                    Text(Bundle.main.object(
+                        forInfoDictionaryKey: "CFBundleShortVersionString"
+                    ) as? String ?? "dev")
+                }
+                Link("Source & documentation",
+                     destination: URL(string: "https://github.com/mabino/fitsnfinish")!)
+            }
+        }
+        .formStyle(.grouped)
+        #if os(macOS)
+        .frame(width: 400, height: 180)
         #endif
     }
 }
