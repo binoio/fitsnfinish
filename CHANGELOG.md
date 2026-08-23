@@ -4,6 +4,21 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
+## 0.3.0 — 2026-08-23
+
+- **Rig + site presets.** Save the current telemetry and engine settings
+  under a name and apply them with one tap. Presets are managed in
+  Settings (⌘, on the Mac; the gear button on iPhone and iPad).
+- **Every fpack compression mode now opens.** Added subtractive-dither
+  quantization, HCOMPRESS, and PLIO tiles — alongside the existing RICE
+  and GZIP support, every standard tile-compressed FITS file now decodes,
+  bit-for-bit identical to the reference decoder.
+- **Multi-extension FITS.** Files that store the image in an extension
+  behind an empty primary header now open normally.
+- **Plate solutions survive export.** WCS and provenance headers (CTYPE,
+  CRVAL, CRPIX, CD/PC matrices, OBJECT, DATE-OBS, and friends) are copied
+  from the source file into exported FITS files.
+
 ## 0.2.0 — 2026-08-23
 
 - **Bright-star masking and sigma-clipped fitting.** Pixels above a robust

@@ -11,6 +11,7 @@ extension UTType {
 @main
 struct FitsnFinishApp: App {
     @StateObject private var model = DocumentModel()
+    @StateObject private var presets = PresetStore()
     #if os(macOS)
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
     #endif
@@ -22,6 +23,7 @@ struct FitsnFinishApp: App {
         WindowGroup("FITS n' Finish") {
             ContentView()
                 .environmentObject(model)
+                .environmentObject(presets)
                 #if os(macOS)
                 .frame(minWidth: 900, minHeight: 600)
                 #endif
@@ -49,6 +51,14 @@ struct FitsnFinishApp: App {
                     .disabled(!model.canRedo)
             }
         }
+
+        #if os(macOS)
+        Settings {
+            SettingsView()
+                .environmentObject(model)
+                .environmentObject(presets)
+        }
+        #endif
     }
 }
 
@@ -80,6 +90,11 @@ struct ContentView: View {
     var body: some View {
         layout
             .navigationTitle(model.fileName ?? "FITS n' Finish")
+            #if !os(macOS)
+            .sheet(isPresented: $model.isSettingsPresented) {
+                SettingsView()
+            }
+            #endif
             .fileImporter(
                 isPresented: $model.isImporterPresented,
                 allowedContentTypes: [.fits, .data]
@@ -157,6 +172,7 @@ final class DocumentModel: ObservableObject {
     @Published var statusMessage = "Ready"
     @Published var isImporterPresented = false
     @Published var isExporterPresented = false
+    @Published var isSettingsPresented = false
 
     // Session-scoped processing history. Entries hold copy-on-write
     // references to run outputs (no pixel copying); entry 0 is always the
@@ -188,7 +204,10 @@ final class DocumentModel: ObservableObject {
     var exportDocument: FITSDocument? {
         guard let processed, let size = imageSize else { return nil }
         return FITSDocument(
-            data: FITSWriter.data(planes: processed, width: size.width, height: size.height)
+            data: FITSWriter.data(
+                planes: processed, width: size.width, height: size.height,
+                preservingFrom: original?.header
+            )
         )
     }
 

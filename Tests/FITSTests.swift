@@ -183,6 +183,83 @@ final class FITSTests: XCTestCase {
         }
     }
 
+    func testSubtractiveDither1MatchesReferenceDecoder() throws {
+        let reference = try fixture("dither1f32_ref")
+        let dithered = try fixture("dither1f32")
+        for k in 0 ..< reference.planes[0].count {
+            XCTAssertEqual(dithered.planes[0][k], reference.planes[0][k], accuracy: 1e-5,
+                           "dither reconstruction must match CFITSIO's random walk")
+        }
+    }
+
+    func testSubtractiveDither2RestoresExactZeros() throws {
+        let reference = try fixture("dither2f32_ref")
+        let dithered = try fixture("dither2f32")
+        for k in 0 ..< reference.planes[0].count {
+            XCTAssertEqual(dithered.planes[0][k], reference.planes[0][k], accuracy: 1e-5)
+        }
+    }
+
+    func testHcompressLosslessMatchesReference() throws {
+        let reference = try fixture("hcomp16_ref")
+        let hcomp = try fixture("hcomp16")
+        XCTAssertEqual(hcomp.planes[0], reference.planes[0],
+                       "HCOMPRESS with scale 0 must be lossless")
+    }
+
+    func testHcompressScaledSmoothedMatchesReference() throws {
+        let reference = try fixture("hcomp16s_ref")
+        let hcomp = try fixture("hcomp16s")
+        XCTAssertEqual(hcomp.planes[0], reference.planes[0],
+                       "lossy HCOMPRESS must reproduce the reference decoder bit for bit")
+    }
+
+    func testPlioMaskMatchesReference() throws {
+        let reference = try fixture("plio32_ref")
+        let plio = try fixture("plio32")
+        XCTAssertEqual(plio.planes[0], reference.planes[0])
+    }
+
+    func testMultiHDUImageExtension() throws {
+        let reference = try fixture("mef16_ref")
+        let mef = try fixture("mef16")
+        XCTAssertEqual(mef.width, reference.width)
+        XCTAssertEqual(mef.planes[0], reference.planes[0],
+                       "an IMAGE extension after an empty primary must be found and decoded")
+    }
+
+    func testExportPreservesWCSCards() throws {
+        var cards = "SIMPLE  =                    T".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "BITPIX  =                   16".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS   =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS1  =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS2  =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "CTYPE1  = 'RA---TAN'".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "CRVAL1  =            38.408625".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "CRPIX1  =                594.5".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "CD1_1   =        -0.0002777778".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "OBJECT  = 'IC 1805 '".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "GAIN    =                  100".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "END".padding(toLength: 80, withPad: " ", startingAt: 0)
+        var headerData = Data(cards.utf8)
+        headerData.append(Data(count: FITSHeader.blockSize - headerData.count % FITSHeader.blockSize))
+        let source = try FITSHeader(data: headerData)
+
+        let exported = FITSWriter.data(
+            planes: [[0.1, 0.2, 0.3, 0.4]], width: 2, height: 2, preservingFrom: source
+        )
+        let roundTrip = try FITSHeader(data: exported)
+        XCTAssertEqual(roundTrip.string("CTYPE1"), "RA---TAN")
+        XCTAssertEqual(roundTrip.double("CRVAL1"), 38.408625)
+        XCTAssertEqual(roundTrip.double("CRPIX1"), 594.5)
+        XCTAssertEqual(roundTrip.double("CD1_1"), -0.0002777778)
+        XCTAssertEqual(roundTrip.string("OBJECT"), "IC 1805")
+        XCTAssertNil(roundTrip.string("GAIN"), "non-whitelisted cards must not leak through")
+        // And the data still decodes.
+        let image = try FITSReader.read(data: exported)
+        XCTAssertEqual(image.pixels[3], 0.4, accuracy: 1e-4)
+    }
+
     func testFloat32FITSDecoding() throws {
         // Hand-build a BITPIX=-32 file.
         var cards = "SIMPLE  =                    T".padding(toLength: 80, withPad: " ", startingAt: 0)

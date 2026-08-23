@@ -8,15 +8,38 @@ import CZLib
 /// dithering (ZQUANTIZ = NO_DITHER), since dithered reconstruction requires
 /// the encoder's random sequence.
 enum FITSTileDecompressor {
+    /// CFITSIO's portable random sequence (Park–Miller LCG, seed 1) used by
+    /// subtractive dithering. Stored as Float to match the reference
+    /// implementation's rounding exactly.
+    static let randomTable: [Float] = {
+        var values = [Float](repeating: 0, count: 10000)
+        let a = 16807.0
+        let m = 2147483647.0
+        var seed = 1.0
+        for i in 0 ..< 10000 {
+            let temp = a * seed
+            seed = temp - m * Double(Int(temp / m))
+            values[i] = Float(seed / m)
+        }
+        return values
+    }()
+
     // MARK: HDU walking
 
-    /// Finds the first tile-compressed image extension after the primary HDU.
+    /// Finds the first image-bearing extension after an empty primary HDU:
+    /// either a tile-compressed BINTABLE or a plain IMAGE extension.
     static func read(data: Data, primaryHeader: FITSHeader) throws -> FITSImage {
         var offset = primaryHeader.byteCount + primaryHeader.dataByteCount
         while offset + FITSHeader.blockSize <= data.count {
             let header = try FITSHeader(data: data, byteOffset: offset)
             if header.string("XTENSION") == "BINTABLE", header.string("ZIMAGE") == "T" {
                 return try decompress(data: data, header: header, dataStart: offset + header.byteCount)
+            }
+            if header.string("XTENSION") == "IMAGE",
+               let naxis = header.integer("NAXIS"), naxis == 2 || naxis == 3 {
+                return try FITSReader.readImage(
+                    data: data, header: header, dataStart: offset + header.byteCount
+                )
             }
             offset += header.byteCount + header.dataByteCount
         }
@@ -125,26 +148,33 @@ enum FITSTileDecompressor {
         let scaleColumn = tableColumns.first { $0.name == "ZSCALE" }
         let zeroColumn = tableColumns.first { $0.name == "ZZERO" }
         let quantized = scaleColumn != nil && zeroColumn != nil
-        if quantized {
-            // Subtractive dithering needs the encoder's random sequence to
-            // reconstruct; only undithered quantization is supported.
-            let method = header.string("ZQUANTIZ") ?? "NO_DITHER"
-            guard method == "NO_DITHER" || method == "NONE" else {
-                throw FITSError.unsupportedCompression("quantization \(method)")
-            }
-        }
+        let ditherMethod = header.string("ZQUANTIZ") ?? "NO_DITHER"
+        let ditherSeed = header.integer("ZDITHER0") ?? 0
 
-        // RICE parameters from ZNAMEn/ZVALn pairs.
+        // Codec parameters from ZNAMEn/ZVALn pairs.
         var blockSize = 32
         var bytePix = max(abs(zbitpix) / 8, 1)
+        var hcompressSmooth = false
         var n = 1
         while let name = header.string("ZNAME\(n)") {
             if name == "BLOCKSIZE" { blockSize = header.integer("ZVAL\(n)") ?? 32 }
             if name == "BYTEPIX" { bytePix = header.integer("ZVAL\(n)") ?? bytePix }
+            if name == "SMOOTH" { hcompressSmooth = (header.integer("ZVAL\(n)") ?? 0) != 0 }
             n += 1
         }
 
         var physical = [Double](repeating: 0, count: width * height * channels)
+
+        // Variable-length descriptors count elements of the column's type:
+        // bytes for PB (RICE/GZIP/HCOMPRESS), 16-bit words for PI (PLIO).
+        let elementSize: Int
+        if dataColumn.form.contains("I") {
+            elementSize = 2
+        } else if dataColumn.form.contains("J") {
+            elementSize = 4
+        } else {
+            elementSize = 1
+        }
 
         for row in 0 ..< rows {
             let rowStart = dataStart + row * rowBytes
@@ -156,11 +186,12 @@ enum FITSTileDecompressor {
                 count = readInt(data, at: rowStart + dataColumn.offset, bytes: 4)
                 heapPointer = readInt(data, at: rowStart + dataColumn.offset + 4, bytes: 4)
             }
+            let byteCount = count * elementSize
             let tileStart = heapStart + heapPointer
-            guard count >= 0, tileStart + count <= data.count else {
-                throw FITSError.truncatedData(expected: count, actual: max(data.count - tileStart, 0))
+            guard count >= 0, tileStart + byteCount <= data.count else {
+                throw FITSError.truncatedData(expected: byteCount, actual: max(data.count - tileStart, 0))
             }
-            let compressed = [UInt8](data.subdata(in: tileStart ..< tileStart + count))
+            let compressed = [UInt8](data.subdata(in: tileStart ..< tileStart + byteCount))
 
             // This tile's position and clipped extent.
             let tx = row % tilesPerAxis[0]
@@ -200,6 +231,19 @@ enum FITSTileDecompressor {
                     bytes = unshuffle(bytes, unit: unit, count: pixelCount)
                 }
                 values = decodeBigEndian(bytes, bitpix: effectiveType, count: pixelCount)
+            case "HCOMPRESS_1":
+                let decoded = try HCompress.decode(compressed, smooth: hcompressSmooth)
+                guard decoded.pixels.count == pixelCount else {
+                    throw FITSError.truncatedData(
+                        expected: pixelCount, actual: decoded.pixels.count
+                    )
+                }
+                values = decoded.pixels.map(Double.init)
+            case "PLIO_1":
+                let words = (0 ..< compressed.count / 2).map { k -> Int16 in
+                    Int16(bitPattern: UInt16(compressed[k * 2]) << 8 | UInt16(compressed[k * 2 + 1]))
+                }
+                values = try PLIO.decode(words, pixelCount: pixelCount).map(Double.init)
             default:
                 throw FITSError.unsupportedCompression(compression)
             }
@@ -208,7 +252,34 @@ enum FITSTileDecompressor {
             if quantized, let scaleColumn, let zeroColumn {
                 let scale = readDouble(data, at: rowStart + scaleColumn.offset, form: scaleColumn.form)
                 let zero = readDouble(data, at: rowStart + zeroColumn.offset, form: zeroColumn.form)
-                mapped = values.map { zero + scale * $0 }
+                switch ditherMethod {
+                case "NO_DITHER", "NONE", "":
+                    mapped = values.map { zero + scale * $0 }
+                case "SUBTRACTIVE_DITHER_1", "SUBTRACTIVE_DITHER_2":
+                    // CFITSIO walk: tile row is 1-based, seeded by ZDITHER0.
+                    var iseed = (row + 1 + ditherSeed - 2) % 10000
+                    if iseed < 0 { iseed += 10000 }
+                    var nextRandom = Int(Self.randomTable[iseed] * 500)
+                    mapped = values.map { value in
+                        defer {
+                            nextRandom += 1
+                            if nextRandom == 10000 {
+                                iseed = (iseed + 1) % 10000
+                                nextRandom = Int(Self.randomTable[iseed] * 500)
+                            }
+                        }
+                        if ditherMethod == "SUBTRACTIVE_DITHER_2", value == -2147483646 {
+                            return 0.0
+                        }
+                        if value == -2147483647 {
+                            // Blank (undefined) pixel; represent as zero.
+                            return 0.0
+                        }
+                        return (value - Double(Self.randomTable[nextRandom]) + 0.5) * scale + zero
+                    }
+                default:
+                    throw FITSError.unsupportedCompression("quantization \(ditherMethod)")
+                }
             }
 
             // Scatter the tile into the full frame (axis 1 fastest).

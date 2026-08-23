@@ -4,9 +4,22 @@ import FitsnFinishCore
 /// Right-hand control panel: telemetry inputs, engine tuning, and actions.
 struct ControlsView: View {
     @EnvironmentObject private var model: DocumentModel
+    @EnvironmentObject private var presets: PresetStore
 
     var body: some View {
         Form {
+            if !presets.presets.isEmpty {
+                Section {
+                    Menu {
+                        ForEach(presets.presets) { preset in
+                            Button(preset.name) { presets.apply(preset, to: model) }
+                        }
+                    } label: {
+                        Label("Apply Preset", systemImage: "slider.horizontal.3")
+                    }
+                }
+            }
+
             Section("Telemetry") {
                 Toggle("Use live telemetry", isOn: $model.useLiveTelemetry)
                     .onChange(of: model.useLiveTelemetry) { _, enabled in
@@ -94,6 +107,14 @@ struct ControlsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
+
+                #if !os(macOS)
+                Button {
+                    model.isSettingsPresented = true
+                } label: {
+                    Label("Settings & Presets", systemImage: "gearshape")
+                }
+                #endif
             }
         }
         .formStyle(.grouped)

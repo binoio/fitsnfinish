@@ -9,7 +9,30 @@ public enum FITSWriter {
         data(planes: [pixels], width: width, height: height)
     }
 
-    public static func data(planes: [[Float]], width: Int, height: Int) -> Data {
+    /// Keywords copied verbatim from the source header on export, so plate
+    /// solutions and provenance survive processing (the image is never
+    /// resampled, so the WCS stays valid).
+    static func isPreservedKeyword(_ keyword: String) -> Bool {
+        let exact: Set<String> = [
+            "WCSAXES", "LONPOLE", "LATPOLE", "EQUINOX", "EPOCH",
+            "RADESYS", "RADECSYS", "MJD-OBS", "DATE-OBS", "OBJECT",
+            "TELESCOP", "INSTRUME", "OBSERVER", "EXPTIME", "FOCALLEN",
+        ]
+        if exact.contains(keyword) { return true }
+        for prefix in ["CTYPE", "CUNIT", "CRVAL", "CRPIX", "CDELT", "CROTA", "PV", "PC", "CD"]
+        where keyword.hasPrefix(prefix) {
+            let rest = keyword.dropFirst(prefix.count)
+            if !rest.isEmpty, rest.allSatisfy({ $0.isNumber || $0 == "_" }) {
+                return true
+            }
+        }
+        return false
+    }
+
+    public static func data(
+        planes: [[Float]], width: Int, height: Int,
+        preservingFrom source: FITSHeader? = nil
+    ) -> Data {
         precondition(!planes.isEmpty)
         precondition(planes.allSatisfy { $0.count == width * height })
         var cards: [String] = [
@@ -25,8 +48,18 @@ public enum FITSWriter {
         cards.append(contentsOf: [
             card("BZERO", "32768", comment: "unsigned 16-bit representation"),
             card("BSCALE", "1"),
-            "END".padding(toLength: FITSHeader.cardSize, withPad: " ", startingAt: 0),
         ])
+        if let source {
+            for (keyword, value) in source.cards
+            where isPreservedKeyword(keyword) && value != nil {
+                var text = keyword.padding(toLength: 8, withPad: " ", startingAt: 0)
+                text += "= " + value!
+                cards.append(text.padding(
+                    toLength: FITSHeader.cardSize, withPad: " ", startingAt: 0
+                ))
+            }
+        }
+        cards.append("END".padding(toLength: FITSHeader.cardSize, withPad: " ", startingAt: 0))
         while cards.count * FITSHeader.cardSize % FITSHeader.blockSize != 0 {
             cards.append(String(repeating: " ", count: FITSHeader.cardSize))
         }

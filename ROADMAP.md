@@ -24,13 +24,17 @@ physics first, low-order statistics second, faint flux preserved always.
   natively: RICE_1 and GZIP_1/GZIP_2 tiles, 16/32-bit integer and float
   data, undithered quantization, color cubes; validated against
   astropy-generated references.
+- **Parameter presets and Settings** *(0.3.0)* — named rig + site presets
+  (telemetry plus engine settings) managed in the macOS Settings window /
+  iOS settings sheet, with one-tap apply from the controls panel.
+- **Complete FITS coverage** *(0.3.0)* — subtractive dithering
+  (SUBTRACTIVE_DITHER_1/2 via CFITSIO's portable random sequence),
+  HCOMPRESS_1 and PLIO_1 tile decoders ported from the reference sources,
+  multi-HDU files (image extensions after an empty primary), and WCS/
+  provenance header passthrough on export. All fixture-validated against
+  astropy's decoder.
 
-## 1.x — Solidify the core
-
-- **Parameter presets.** Named presets for rig + site combinations.
-- **Broader FITS coverage.** Dithered quantization (SUBTRACTIVE_DITHER),
-  HCOMPRESS/PLIO tiles, multi-HDU files, and WCS header passthrough on
-  export.
+The 1.x core list is complete.
 
 ## 2.x — Smarter physics
 

@@ -63,6 +63,13 @@ public enum FITSReader {
             // carry the image in a BINTABLE extension.
             return try FITSTileDecompressor.read(data: data, primaryHeader: header)
         }
+        return try readImage(data: data, header: header, dataStart: header.byteCount)
+    }
+
+    /// Decodes an uncompressed image HDU (primary or IMAGE extension) whose
+    /// data unit starts at `dataStart`.
+    static func readImage(data: Data, header: FITSHeader, dataStart: Int) throws -> FITSImage {
+        let naxis = try header.requiredInteger("NAXIS")
         guard naxis == 2 || naxis == 3 else { throw FITSError.unsupportedAxisCount(naxis) }
         let width = try header.requiredInteger("NAXIS1")
         let height = try header.requiredInteger("NAXIS2")
@@ -72,11 +79,11 @@ public enum FITSReader {
         let count = width * height * channels
         let bytesPerPixel = abs(bitpix) / 8
         let expected = count * bytesPerPixel
-        let available = data.count - header.byteCount
+        let available = data.count - dataStart
         guard available >= expected else {
             throw FITSError.truncatedData(expected: expected, actual: max(available, 0))
         }
-        let payload = data.subdata(in: header.byteCount ..< header.byteCount + expected)
+        let payload = data.subdata(in: dataStart ..< dataStart + expected)
 
         let physical: [Double]
         switch bitpix {
