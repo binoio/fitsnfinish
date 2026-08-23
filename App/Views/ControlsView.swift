@@ -61,6 +61,22 @@ struct ControlsView: View {
             }
 
             Section {
+                HStack {
+                    Button {
+                        model.undo()
+                    } label: {
+                        Label("Undo", systemImage: "arrow.uturn.backward")
+                    }
+                    .disabled(!model.canUndo)
+                    Button {
+                        model.redo()
+                    } label: {
+                        Label("Redo", systemImage: "arrow.uturn.forward")
+                    }
+                    .disabled(!model.canRedo)
+                    Spacer()
+                }
+
                 Button {
                     model.process()
                 } label: {

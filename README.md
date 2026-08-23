@@ -109,7 +109,7 @@ $$y = \frac{(m-1)\,x}{(2m-1)\,x - m}$$
 | Path | Contents |
 | --- | --- |
 | `App/` | SwiftUI app: document model, Metal preview (`Views/MetalView.swift`), control panel (`Views/ControlsView.swift`), GPU blend engine |
-| `Core/FITS/` | FITS header parsing, big-endian 8/16/32/−32/−64-bit decoding, 16-bit writer |
+| `Core/FITS/` | FITS header parsing, big-endian 8/16/32/−32/−64-bit decoding, tile-compressed (fpack RICE/GZIP) support, 16-bit writer |
 | `Core/Telemetry/` | CoreLocation / CoreMotion / WeatherKit providers behind test-injectable protocols |
 | `Core/Physics/` | Kasten–Young airmass, Rayleigh/Mie optical depths, skyglow prior surface |
 | `Core/Math/` | LAPACK `dgels_` least squares (portable fallback included), 2-D polynomial fitter |

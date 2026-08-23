@@ -58,6 +58,11 @@ public enum FITSReader {
     public static func read(data: Data) throws -> FITSImage {
         let header = try FITSHeader(data: data)
         let naxis = try header.requiredInteger("NAXIS")
+        if naxis == 0 {
+            // Tile-compressed files (fpack) have an empty primary HDU and
+            // carry the image in a BINTABLE extension.
+            return try FITSTileDecompressor.read(data: data, primaryHeader: header)
+        }
         guard naxis == 2 || naxis == 3 else { throw FITSError.unsupportedAxisCount(naxis) }
         let width = try header.requiredInteger("NAXIS1")
         let height = try header.requiredInteger("NAXIS2")
@@ -99,10 +104,22 @@ public enum FITSReader {
             throw FITSError.unsupportedBitpix(bitpix)
         }
 
-        // Apply the linear physical-value transform, then normalize to [0, 1]
-        // over the full range of the storage type (or data min/max for floats).
-        let bzero = header.bzero
-        let bscale = header.bscale
+        let planes = try normalizedPlanes(
+            physical: physical, bitpix: bitpix,
+            bzero: header.bzero, bscale: header.bscale,
+            width: width, height: height, channels: channels
+        )
+        return FITSImage(header: header, width: width, height: height, planes: planes)
+    }
+
+    /// Applies the linear physical-value transform, normalizes to [0, 1]
+    /// over the full range of the storage type (or data min/max for floats),
+    /// and splits the payload into channel planes (FITS cube order: axis 1
+    /// fastest, so the payload is a sequence of row-major planes).
+    static func normalizedPlanes(
+        physical: [Double], bitpix: Int, bzero: Double, bscale: Double,
+        width: Int, height: Int, channels: Int
+    ) throws -> [[Float]] {
         let scaled = physical.map { bzero + bscale * $0 }
 
         let range: ClosedRange<Double>
@@ -120,13 +137,10 @@ public enum FITSReader {
         let span = range.upperBound - range.lowerBound
         let pixels = scaled.map { Float(($0 - range.lowerBound) / span) }
 
-        // FITS cube data order: axis 1 fastest, so the payload is a sequence
-        // of channel planes, each row-major.
         let planeSize = width * height
-        let planes = (0 ..< channels).map {
+        return (0 ..< channels).map {
             Array(pixels[$0 * planeSize ..< ($0 + 1) * planeSize])
         }
-        return FITSImage(header: header, width: width, height: height, planes: planes)
     }
 
     private static func normalizationRange(

@@ -2,14 +2,17 @@
 import PackageDescription
 
 var targets: [Target] = [
+    .systemLibrary(name: "CZLib", path: "CZLib"),
     .target(
         name: "FitsnFinishCore",
+        dependencies: ["CZLib"],
         path: "Core"
     ),
     .testTarget(
         name: "FitsnFinishTests",
         dependencies: ["FitsnFinishCore"],
-        path: "Tests"
+        path: "Tests",
+        resources: [.copy("Fixtures")]
     ),
 ]
 
@@ -36,6 +39,7 @@ targets.append(
         exclude: [
             "build",
             "Core",
+            "CZLib",
             "Tests",
             "Scripts",
             "Support",

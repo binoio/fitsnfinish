@@ -40,6 +40,14 @@ struct FitsnFinishApp: App {
                     .keyboardShortcut("e")
                     .disabled(model.processed == nil)
             }
+            CommandGroup(after: .undoRedo) {
+                Button("Undo Processing Step") { model.undo() }
+                    .keyboardShortcut("z", modifiers: [.command, .option])
+                    .disabled(!model.canUndo)
+                Button("Redo Processing Step") { model.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .option, .shift])
+                    .disabled(!model.canRedo)
+            }
         }
     }
 }
@@ -150,6 +158,17 @@ final class DocumentModel: ObservableObject {
     @Published var isImporterPresented = false
     @Published var isExporterPresented = false
 
+    // Session-scoped processing history. Entries hold copy-on-write
+    // references to run outputs (no pixel copying); entry 0 is always the
+    // untouched original and survives trimming.
+    private struct HistoryEntry {
+        let planes: [[Float]]?
+        let label: String
+    }
+    private var history: [HistoryEntry] = [HistoryEntry(planes: nil, label: "Original")]
+    @Published private(set) var historyIndex = 0
+    private static let historyLimit = 8
+
     @Published var telemetry = TelemetrySnapshot()
     @Published var degree: PolynomialFitter.Degree = .linear
     @Published var physicsStrength: Float = 1.0
@@ -173,6 +192,36 @@ final class DocumentModel: ObservableObject {
         )
     }
 
+    var canUndo: Bool { historyIndex > 0 }
+    var canRedo: Bool { historyIndex < history.count - 1 }
+
+    func undo() {
+        guard canUndo else { return }
+        historyIndex -= 1
+        processed = history[historyIndex].planes
+        statusMessage = "Undid to: \(history[historyIndex].label)"
+    }
+
+    func redo() {
+        guard canRedo else { return }
+        historyIndex += 1
+        processed = history[historyIndex].planes
+        statusMessage = "Redid to: \(history[historyIndex].label)"
+    }
+
+    private func recordRun(_ planes: [[Float]], label: String) {
+        if historyIndex + 1 < history.count {
+            history.removeSubrange((historyIndex + 1)...)
+        }
+        history.append(HistoryEntry(planes: planes, label: label))
+        // Trim oldest runs but never the original baseline.
+        while history.count > Self.historyLimit {
+            history.remove(at: 1)
+        }
+        historyIndex = history.count - 1
+        processed = planes
+    }
+
     var exportFileName: String {
         (fileName as NSString?)?
             .deletingPathExtension.appending("_finished") ?? "finished"
@@ -189,6 +238,8 @@ final class DocumentModel: ObservableObject {
             let image = try FITSReader.read(contentsOf: url)
             original = image
             processed = nil
+            history = [HistoryEntry(planes: nil, label: "Original")]
+            historyIndex = 0
             fileName = url.lastPathComponent
             let channels = image.channelCount > 1 ? ", \(image.channelCount) channels" : ""
             statusMessage = "Loaded \(image.width)×\(image.height)\(channels), BITPIX \(image.header.bitpix)"
@@ -246,25 +297,51 @@ final class DocumentModel: ObservableObject {
         let engine = subtractEngine
         Task.detached(priority: .userInitiated) {
             do {
-                // Each color channel gets its own prior gain and surface fit
-                // (skyglow is color-dependent). Prefer the GPU blend when
-                // Metal is available; the CPU result is the reference
-                // fallback.
-                let results = try pipeline.processPlanes(image: image)
-                let final = zip(image.planes, results).map { plane, result in
-                    engine.subtract(
-                        image: plane,
-                        prior: result.physicalPrior,
-                        surface: result.polynomialSurface,
-                        width: image.width,
-                        height: image.height,
-                        physicsStrength: pipeline.physicsStrength
-                    ) ?? result.pixels
+                // Each channel gets its own scattering wavelength, prior
+                // gain, and surface fit (skyglow is color-dependent). The
+                // full per-pixel pipeline runs on GPU where Metal is
+                // available; the CPU pipeline is the reference fallback.
+                let fitter = PolynomialFitter(degree: pipeline.degree,
+                                              sampleSpacing: pipeline.sampleSpacing)
+                let fovY = pipeline.telemetry.fieldOfViewDegrees
+                    * Double(image.height) / Double(image.width)
+                var usedGPU = true
+                var final: [[Float]] = []
+                for (index, plane) in image.planes.enumerated() {
+                    let wavelength = pipeline.wavelength(
+                        forChannel: index, of: image.channelCount
+                    )
+                    let tau = RayleighMie.totalOpticalDepth(
+                        wavelengthMicrons: wavelength,
+                        beta: pipeline.telemetry.aerosolOpticalDepth,
+                        relativeHumidity: pipeline.telemetry.relativeHumidity
+                    )
+                    if let gpu = engine.processPlane(
+                        pixels: plane, width: image.width, height: image.height,
+                        opticalDepth: tau,
+                        altitudeCenterDegrees: pipeline.telemetry.targetAltitudeDegrees,
+                        fovYDegrees: fovY,
+                        physicsStrength: pipeline.physicsStrength,
+                        fitter: fitter
+                    ) {
+                        final.append(gpu)
+                    } else {
+                        usedGPU = false
+                        var channelPipeline = pipeline
+                        channelPipeline.telemetry.wavelengthMicrons = wavelength
+                        let result = try channelPipeline.process(
+                            pixels: plane, width: image.width, height: image.height
+                        )
+                        final.append(result.pixels)
+                    }
                 }
+                let path = usedGPU ? "GPU" : "CPU"
+                let label = "Physics + degree-\(pipeline.degree.rawValue) fit (\(path))"
+                let planes = final
                 await MainActor.run {
-                    self.processed = final
+                    self.recordRun(planes, label: label)
                     self.isProcessing = false
-                    self.statusMessage = "Done — hybrid physics + degree-\(self.degree.rawValue) fit"
+                    self.statusMessage = "Done — \(label.lowercased())"
                 }
             } catch {
                 await MainActor.run {

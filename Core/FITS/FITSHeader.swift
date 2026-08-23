@@ -8,6 +8,7 @@ public enum FITSError: Error, Equatable, CustomStringConvertible {
     case unsupportedBitpix(Int)
     case unsupportedAxisCount(Int)
     case truncatedData(expected: Int, actual: Int)
+    case unsupportedCompression(String)
 
     public var description: String {
         switch self {
@@ -23,6 +24,8 @@ public enum FITSError: Error, Equatable, CustomStringConvertible {
             return "Unsupported NAXIS value \(naxis); only 2-D images and 3-axis color cubes (up to 4 channels) are supported"
         case .truncatedData(let expected, let actual):
             return "FITS data unit truncated: expected \(expected) bytes, found \(actual)"
+        case .unsupportedCompression(let detail):
+            return "Unsupported FITS tile compression: \(detail)"
         }
     }
 }
@@ -46,7 +49,13 @@ public struct FITSHeader: Equatable {
 
     /// Parses header blocks from the start of `data` until the END card.
     public init(data: Data) throws {
-        var offset = 0
+        try self.init(data: data, byteOffset: 0)
+    }
+
+    /// Parses header blocks starting at `byteOffset` (the start of an HDU)
+    /// until the END card. `byteCount` is relative to that offset.
+    public init(data: Data, byteOffset: Int) throws {
+        var offset = byteOffset
         var foundEnd = false
 
         while !foundEnd {
@@ -76,8 +85,27 @@ public struct FITSHeader: Equatable {
             offset += Self.blockSize
         }
 
-        byteCount = offset
-        guard string("SIMPLE") == "T" else { throw FITSError.notFITS }
+        byteCount = offset - byteOffset
+        if byteOffset == 0 {
+            guard string("SIMPLE") == "T" else { throw FITSError.notFITS }
+        }
+    }
+
+    /// Size of this HDU's data unit in bytes, padded to a 2880-byte block:
+    /// |BITPIX|/8 × GCOUNT × (PCOUNT + Πᵢ NAXISᵢ).
+    public var dataByteCount: Int {
+        let naxis = integer("NAXIS") ?? 0
+        guard naxis > 0 || (integer("PCOUNT") ?? 0) > 0 else { return 0 }
+        var pixels = 1
+        for axis in 1 ... max(naxis, 1) where naxis > 0 {
+            pixels *= integer("NAXIS\(axis)") ?? 0
+        }
+        if naxis == 0 { pixels = 0 }
+        let gcount = integer("GCOUNT") ?? 1
+        let pcount = integer("PCOUNT") ?? 0
+        let bytes = abs(bitpix) / 8 * gcount * (pcount + pixels)
+        let blocks = (bytes + Self.blockSize - 1) / Self.blockSize
+        return blocks * Self.blockSize
     }
 
     /// Removes the trailing `/ comment` portion of a value field, honoring

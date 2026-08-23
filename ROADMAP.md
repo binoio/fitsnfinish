@@ -4,21 +4,33 @@ Where FITS n' Finish is headed, roughly in priority order. Items are scoped
 so each can land independently; none change the core promise — deterministic
 physics first, low-order statistics second, faint flux preserved always.
 
+## Shipped
+
+- **Star masking in the surface fitter** *(0.2.0)* — bright pixels above a
+  robust sigma threshold are excluded from cell medians, star-dominated
+  cells and a dilated halo ring around them are dropped, and the fit
+  iterates with sigma clipping so saturated-star halos cannot tilt it.
+- **Per-channel telemetry wavelengths** *(0.2.0)* — the Rayleigh/Mie model
+  runs per channel with R/G/B band wavelengths (0.64/0.53/0.47 µm,
+  configurable), so the blue channel gets its physically steeper λ⁻⁴ curve.
+- **Session-scoped undo/redo** *(0.2.0)* — processing runs are kept as
+  copy-on-write history entries (capped, original always preserved) with
+  ⌥⌘Z / ⌥⇧⌘Z and panel buttons.
+- **Metal end-to-end** *(0.2.0)* — prior render, masked cell-median
+  sampling, surface render, and the final blend all run as compute kernels;
+  the CPU keeps only the tiny least-squares solves. Verified bit-identical
+  to the CPU reference path.
+- **Compressed FITS** *(0.2.0)* — tile-compressed (fpack) files decode
+  natively: RICE_1 and GZIP_1/GZIP_2 tiles, 16/32-bit integer and float
+  data, undithered quantization, color cubes; validated against
+  astropy-generated references.
+
 ## 1.x — Solidify the core
 
-- **Star masking in the surface fitter.** Cell medians already resist point
-  sources; add sigma-clipped iteration and an explicit bright-star mask so
-  large halos near saturated stars cannot tilt the low-order fit.
-- **Per-channel telemetry wavelengths.** Color cubes currently share one
-  effective wavelength; drive the Rayleigh/Mie model with per-channel bands
-  (R/G/B or narrowband presets) for a physically correct color gradient.
-- **Undo history and parameter presets.** Session-scoped undo of processing
-  runs; named presets for rig + site combinations.
-- **Metal end-to-end.** The prior render and cell-median sampling still run
-  on CPU; move both into compute kernels so megapixel-class frames process
-  entirely on GPU.
-- **Broader FITS coverage.** Compressed FITS (RICE/GZIP tiles), multi-HDU
-  files, and WCS header passthrough on export.
+- **Parameter presets.** Named presets for rig + site combinations.
+- **Broader FITS coverage.** Dithered quantization (SUBTRACTIVE_DITHER),
+  HCOMPRESS/PLIO tiles, multi-HDU files, and WCS header passthrough on
+  export.
 
 ## 2.x — Smarter physics
 

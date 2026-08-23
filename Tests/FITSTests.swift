@@ -127,6 +127,62 @@ final class FITSTests: XCTestCase {
         }
     }
 
+    // MARK: Tile-compressed FITS (fpack convention)
+
+    private func fixture(_ name: String) throws -> FITSImage {
+        let url = try XCTUnwrap(Bundle.module.url(
+            forResource: name, withExtension: "fits", subdirectory: "Fixtures"
+        ))
+        return try FITSReader.read(contentsOf: url)
+    }
+
+    func testRiceCompressed16BitMatchesUncompressed() throws {
+        let plain = try fixture("plain16")
+        let rice = try fixture("rice16")
+        XCTAssertEqual(rice.width, plain.width)
+        XCTAssertEqual(rice.height, plain.height)
+        XCTAssertEqual(rice.planes[0], plain.planes[0], "RICE decode must be lossless")
+    }
+
+    func testGzipCompressed16BitMatchesUncompressed() throws {
+        let plain = try fixture("plain16")
+        let gzip = try fixture("gzip16")
+        XCTAssertEqual(gzip.planes[0], plain.planes[0], "GZIP_1 decode must be lossless")
+    }
+
+    func testGzip2Float32MatchesUncompressed() throws {
+        let plain = try fixture("plainf32")
+        let gzip2 = try fixture("gzip2f32")
+        XCTAssertEqual(gzip2.planes[0], plain.planes[0],
+                       "GZIP_2 float decode must be lossless after unshuffling")
+    }
+
+    func testGzipQuantizedFloat32WithinQuantizationError() throws {
+        let plain = try fixture("plainf32")
+        let gzip = try fixture("gzip1q32")
+        for k in 0 ..< plain.planes[0].count {
+            XCTAssertEqual(gzip.planes[0][k], plain.planes[0][k], accuracy: 2e-3)
+        }
+    }
+
+    func testRiceQuantizedFloat32WithinQuantizationError() throws {
+        let plain = try fixture("plainf32")
+        let rice = try fixture("ricef32")
+        XCTAssertEqual(rice.width, plain.width)
+        for k in 0 ..< plain.planes[0].count {
+            XCTAssertEqual(rice.planes[0][k], plain.planes[0][k], accuracy: 2e-3)
+        }
+    }
+
+    func testRiceCompressedColorCubeMatchesUncompressed() throws {
+        let plain = try fixture("plaincube16")
+        let rice = try fixture("ricecube16")
+        XCTAssertEqual(rice.channelCount, 3)
+        for c in 0 ..< 3 {
+            XCTAssertEqual(rice.planes[c], plain.planes[c])
+        }
+    }
+
     func testFloat32FITSDecoding() throws {
         // Hand-build a BITPIX=-32 file.
         var cards = "SIMPLE  =                    T".padding(toLength: 80, withPad: " ", startingAt: 0)

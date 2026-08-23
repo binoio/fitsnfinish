@@ -4,8 +4,12 @@
 # Linux via canImport/os guards; the solver exercises its portable fallback.
 FROM swift:6.1-noble
 
+RUN apt-get update && apt-get install -y --no-install-recommends zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /package
 COPY Package.swift ./
+COPY CZLib ./CZLib
 COPY Core ./Core
 COPY Tests ./Tests
 
