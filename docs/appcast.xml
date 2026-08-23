@@ -3,6 +3,20 @@
     <channel>
         <title>FITS n' Finish</title>
         <item>
+            <title>0.4.2</title>
+            <pubDate>Sun, 23 Aug 2026 12:45:31 -0400</pubDate>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>FITS n' Finish 0.4.2</h2>
+<ul>
+<li><b>macOS Location prompt trigger.</b> Fixed macOS CoreLocation flow to explicitly trigger the system authorization dialog and location updates via <code>startUpdatingLocation()</code>.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.4.2/FitsnFinish-0.4.2.zip" length="3020794" type="application/octet-stream" sparkle:edSignature="U7h7uvh/WbCa4SPtPJcw7HxOly7wsyY6hgGi3Gbk7lGn+t8gMeFINSXGBln8F7gDNgpZoWjM92GMcCItqlIvAg=="/>
+        </item>
+        <item>
             <title>0.4.1</title>
             <pubDate>Sun, 23 Aug 2026 11:45:23 -0400</pubDate>
             <sparkle:version>25</sparkle:version>
@@ -40,21 +54,6 @@
 </ul>
 ]]></description>
             <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.4.0/FitsnFinish-0.4.0.zip" length="3019483" type="application/octet-stream" sparkle:edSignature="L107HU8ETvZkDElVoMlyBqFs7tlUEAh1iSbC8i57Gc0cKzCiKMRtPzEVtKkcTFAQ5YWjAVQ3V6syihET8zYXCg=="/>
-        </item>
-        <item>
-            <title>0.3.1</title>
-            <pubDate>Sun, 23 Aug 2026 10:40:10 -0400</pubDate>
-            <sparkle:version>16</sparkle:version>
-            <sparkle:shortVersionString>0.3.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>FITS n' Finish 0.3.1</h2>
-<ul>
-<li><b>Preset Library.</b> Preset management moved out of Settings into its own Preset Library window (Window menu or &#8679;&#8984;P on the Mac; the library button on iPhone and iPad), with inline renaming and JSON import/export for sharing presets between machines. Settings now holds app information only.</li>
-<li><b>Standard undo.</b> The undo/redo buttons are gone; processing steps sit on the system undo stack &mdash; Edit &#9656; Undo/Redo (&#8984;Z/&#8679;&#8984;Z) on the Mac, and the usual three-finger tap or shake gestures on iOS.</li>
-</ul>
-]]></description>
-            <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.3.1/FitsnFinish-0.3.1.zip" length="2957856" type="application/octet-stream" sparkle:edSignature="jMI/PrIUuf5SCE23/6tULFWxmSV2gAinbQsR7HMXK984K83bxyjzVCfB81e5erMwZWcNhU6DdZjm+ERLv/YJAw=="/>
         </item>
     </channel>
 </rss>
