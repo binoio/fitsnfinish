@@ -65,7 +65,7 @@ codesign -f -s "$IDENTITY" -o runtime "$FRAMEWORK/Versions/B/Updater.app"
 codesign -f -s "$IDENTITY" -o runtime --preserve-metadata=entitlements "$FRAMEWORK/Versions/B/XPCServices/Installer.xpc"
 codesign -f -s "$IDENTITY" -o runtime --preserve-metadata=entitlements "$FRAMEWORK/Versions/B/XPCServices/Downloader.xpc"
 codesign -f -s "$IDENTITY" -o runtime "$FRAMEWORK"
-codesign -f -s "$IDENTITY" -o runtime "$APP"
+codesign -f -s "$IDENTITY" -o runtime --entitlements "Support/FitsnFinish.entitlements" "$APP"
 codesign --verify --deep --strict "$APP"
 
 echo "==> Notarizing"

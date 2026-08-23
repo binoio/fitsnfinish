@@ -53,6 +53,8 @@
 	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Your location is used to model local atmospheric skyglow (airmass and aerosol scattering) for gradient removal.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Device motion provides the optical-axis altitude/azimuth heading used by the atmospheric model.</string>
 	<key>NSPrincipalClass</key>

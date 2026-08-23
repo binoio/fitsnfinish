@@ -1,0 +1,6 @@
+## FITS n' Finish 0.4.3
+
+- **macOS Location prompt & entitlements.** Embedded location entitlements
+  into the signed Developer ID app bundle, added all location description keys
+  to Info.plist, and ignored transient location acquisition errors to allow
+  the macOS system authorization dialog to display.

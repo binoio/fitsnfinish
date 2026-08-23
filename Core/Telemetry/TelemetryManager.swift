@@ -105,37 +105,56 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
         if let cached = manager.location {
             return (cached.coordinate.latitude, cached.coordinate.longitude)
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            let status = manager.authorizationStatus
-            switch status {
-            case .notDetermined:
-                #if os(macOS)
-                manager.requestWhenInUseAuthorization()
-                manager.startUpdatingLocation()
-                #else
-                manager.requestWhenInUseAuthorization()
-                manager.requestLocation()
-                #endif
-            case .authorizedWhenInUse, .authorizedAlways:
-                #if os(macOS)
-                manager.startUpdatingLocation()
-                #else
-                manager.requestLocation()
-                #endif
-            case .denied, .restricted:
-                self.continuation = nil
-                continuation.resume(throwing: NSError(
-                    domain: kCLErrorDomain, code: Int(CLError.denied.rawValue),
-                    userInfo: [NSLocalizedDescriptionKey: "Location access denied"]
-                ))
-            @unknown default:
-                #if os(macOS)
-                manager.startUpdatingLocation()
-                #else
-                manager.requestLocation()
-                #endif
+        return try await withThrowingTaskGroup(of: (latitude: Double, longitude: Double).self) { group in
+            group.addTask {
+                try await withCheckedThrowingContinuation { continuation in
+                    self.continuation = continuation
+                    let status = self.manager.authorizationStatus
+                    switch status {
+                    case .notDetermined:
+                        #if os(macOS)
+                        self.manager.requestWhenInUseAuthorization()
+                        self.manager.startUpdatingLocation()
+                        #else
+                        self.manager.requestWhenInUseAuthorization()
+                        self.manager.requestLocation()
+                        #endif
+                    case .authorizedWhenInUse, .authorizedAlways:
+                        #if os(macOS)
+                        self.manager.startUpdatingLocation()
+                        #else
+                        self.manager.requestLocation()
+                        #endif
+                    case .denied, .restricted:
+                        self.continuation = nil
+                        continuation.resume(throwing: NSError(
+                            domain: kCLErrorDomain, code: Int(CLError.denied.rawValue),
+                            userInfo: [NSLocalizedDescriptionKey: "Location access denied"]
+                        ))
+                    @unknown default:
+                        #if os(macOS)
+                        self.manager.startUpdatingLocation()
+                        #else
+                        self.manager.requestLocation()
+                        #endif
+                    }
+                }
             }
+            group.addTask {
+                try await Task.sleep(nanoseconds: 15_000_000_000)
+                throw NSError(
+                    domain: kCLErrorDomain, code: Int(CLError.locationUnknown.rawValue),
+                    userInfo: [NSLocalizedDescriptionKey: "Location request timed out"]
+                )
+            }
+            guard let result = try await group.next() else {
+                throw NSError(
+                    domain: kCLErrorDomain, code: Int(CLError.locationUnknown.rawValue),
+                    userInfo: [NSLocalizedDescriptionKey: "Location request cancelled"]
+                )
+            }
+            group.cancelAll()
+            return result
         }
     }
 
@@ -178,6 +197,10 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
     }
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        if let clError = error as? CLError, clError.code == .locationUnknown {
+            // CoreLocation is still attempting to acquire a fix; do not abort.
+            return
+        }
         #if os(macOS)
         manager.stopUpdatingLocation()
         #endif

@@ -4,6 +4,13 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
+## 0.4.3 — 2026-08-23
+
+- **macOS Location prompt & entitlements.** Embedded location entitlements
+  into the signed Developer ID app bundle, added all location description keys
+  to Info.plist, and ignored transient location acquisition errors to allow
+  the macOS system authorization dialog to display.
+
 ## 0.4.2 — 2026-08-23
 
 - **macOS Location prompt trigger.** Fixed macOS CoreLocation flow to
