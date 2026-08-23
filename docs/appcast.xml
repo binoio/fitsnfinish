@@ -3,6 +3,23 @@
     <channel>
         <title>FITS n' Finish</title>
         <item>
+            <title>0.3.0</title>
+            <pubDate>Sun, 23 Aug 2026 10:30:59 -0400</pubDate>
+            <sparkle:version>13</sparkle:version>
+            <sparkle:shortVersionString>0.3.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>FITS n' Finish 0.3.0</h2>
+<ul>
+<li><b>Rig + site presets.</b> Save the current telemetry and engine settings under a name and apply them with one tap. Presets are managed in Settings (&#8984;, on the Mac; the gear button on iPhone and iPad).</li>
+<li><b>Every fpack compression mode now opens.</b> Added subtractive-dither quantization, HCOMPRESS, and PLIO tiles &mdash; alongside the existing RICE and GZIP support, every standard tile-compressed FITS file now decodes, bit-for-bit identical to the reference decoder.</li>
+<li><b>Multi-extension FITS.</b> Files that store the image in an extension behind an empty primary header now open normally.</li>
+<li><b>Plate solutions survive export.</b> WCS and provenance headers (CTYPE, CRVAL, CRPIX, CD/PC matrices, OBJECT, DATE-OBS, and friends) are copied from the source file into exported FITS files.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.3.0/FitsnFinish-0.3.0.zip" length="2938381" type="application/octet-stream" sparkle:edSignature="TTyUGnQ0cz+EIFgBWTBAQNDLp0j9LmksXJZHJcYzfFlI5Iri4fm/eFSoEKBjYk15Md/qCmEoUmIjkle32LQxCw=="/>
+        </item>
+        <item>
             <title>0.2.0</title>
             <pubDate>Sun, 23 Aug 2026 10:16:45 -0400</pubDate>
             <sparkle:version>11</sparkle:version>
