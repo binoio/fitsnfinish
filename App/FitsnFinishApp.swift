@@ -11,6 +11,9 @@ extension UTType {
 @main
 struct FitsnFinishApp: App {
     @StateObject private var model = DocumentModel()
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
+    #endif
     #if os(macOS) && canImport(Sparkle)
     @StateObject private var updater = UpdaterModel()
     #endif
