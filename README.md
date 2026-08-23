@@ -6,9 +6,11 @@ Metal preview adapt per platform).
 Instead of chasing skyglow with hundreds of sample boxes or high-order
 polynomials, FITS n' Finish removes the background in two stages:
 
-1. **Physics** — a deterministic Rayleigh/Mie scattering model computes the
-   non-linear airmass baseline from telemetry (location, target altitude and
-   azimuth, humidity, aerosol optical depth) and subtracts it first.
+1. **Physics** — a physically motivated atmospheric-scattering background
+   model: Kasten–Young airmass geometry shaped by Rayleigh and aerosol
+   optical depths (from telemetry: location, pointing, humidity, aerosol
+   load) predicts the *shape* of the non-linear sky baseline; its amplitude
+   is least-squares fitted to the frame, then subtracted.
 2. **Math** — a low-order (1st/2nd degree) polynomial surface, solved with
    LAPACK least squares over median-sampled cells, cleans up the remaining
    localized light domes and flat-field residuals. Low-order surfaces lack the
@@ -26,7 +28,14 @@ per channel, since skyglow is strongly color-dependent.
 Pixel values are normalized to $[0,1]$ from the FITS storage range before any
 processing; all fitting below happens in that linear space.
 
-### Stage 1 — the physical prior
+### Stage 1 — the atmospheric-scattering background model
+
+The optical depths below parameterize the *shape* of the scattered-sky
+baseline — how steeply the background brightens toward the horizon and how
+that varies with color. This is a background model, not a radiative-transfer
+prediction: the baseline's absolute amplitude is least-squares fitted to
+each frame (see "Matching the prior"), so only the relative geometry needs
+to be right.
 
 **Airmass.** For apparent altitude $h$ (zenith angle $z = 90^\circ - h$), the
 relative airmass uses the Kasten–Young (1989) formula, finite all the way to
@@ -90,9 +99,11 @@ mean-centered and clamped, like the prior.
 
 Degree is deliberately capped at 2: a bivariate polynomial of degree $d$ has
 only $\tfrac{(d+1)(d+2)}{2}$ coefficients — 3 or 6 degrees of freedom —
-which is mathematically insufficient to conform to structured extended
-targets. That is the preservation guarantee: the surface *cannot* scoop out
-IFN or galaxy halos because it lacks the freedom to describe them.
+which sharply limits its ability to conform to structured extended targets.
+That is a strong safeguard, not an absolute guarantee: a sufficiently broad,
+smooth structure can resemble a low-order gradient, which is why both fitted
+surfaces are directly inspectable in the app (the Physical and Surface view
+modes show exactly what was subtracted).
 
 Color cubes run both stages per channel, since $\tau(\lambda)$ makes skyglow
 color-dependent.

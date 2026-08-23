@@ -8,6 +8,12 @@ var targets: [Target] = [
         dependencies: ["CZLib"],
         path: "Core"
     ),
+    // Headless CLI (macOS and Linux): the CPU reference pipeline.
+    .executableTarget(
+        name: "fnfin",
+        dependencies: ["FitsnFinishCore"],
+        path: "CLI"
+    ),
     .testTarget(
         name: "FitsnFinishTests",
         dependencies: ["FitsnFinishCore"],
@@ -18,6 +24,7 @@ var targets: [Target] = [
 
 var products: [Product] = [
     .library(name: "FitsnFinishCore", targets: ["FitsnFinishCore"]),
+    .executable(name: "fnfin", targets: ["fnfin"]),
 ]
 
 var dependencies: [Package.Dependency] = []
@@ -39,6 +46,7 @@ targets.append(
         exclude: [
             "build",
             "CHANGELOG.md",
+            "CLI",
             "Core",
             "CZLib",
             "docs",

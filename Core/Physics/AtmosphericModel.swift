@@ -18,6 +18,13 @@ public struct TelemetrySnapshot: Equatable {
     public var fieldOfViewDegrees: Double
     /// Effective imaging wavelength in micrometers (0.55 ≈ luminance).
     public var wavelengthMicrons: Double
+    /// Filter passband width, micrometers; the scattering model integrates
+    /// across the band (0 = evaluate at the center wavelength only).
+    public var bandwidthMicrons: Double
+    /// Ångström aerosol spectral exponent (1.3 = continental prior).
+    public var angstromExponent: Double
+    /// Hänel hygroscopic growth exponent γ in β(RH) = β·(1−RH)^(−γ).
+    public var aerosolGrowthExponent: Double
     /// Direction of increasing altitude in the frame, degrees clockwise
     /// from the +Y (row) axis. 0 = "up" is along rows, the historical
     /// assumption; from a WCS this is north angle + parallactic angle.
@@ -48,6 +55,9 @@ public struct TelemetrySnapshot: Equatable {
         aerosolOpticalDepth: Double = 0.1,
         fieldOfViewDegrees: Double = 2,
         wavelengthMicrons: Double = 0.55,
+        bandwidthMicrons: Double = 0.1,
+        angstromExponent: Double = 1.3,
+        aerosolGrowthExponent: Double = 0.25,
         fieldRotationDegrees: Double = 0,
         rightAscensionDegrees: Double? = nil,
         declinationDegrees: Double? = nil,
@@ -65,6 +75,9 @@ public struct TelemetrySnapshot: Equatable {
         self.aerosolOpticalDepth = aerosolOpticalDepth
         self.fieldOfViewDegrees = fieldOfViewDegrees
         self.wavelengthMicrons = wavelengthMicrons
+        self.bandwidthMicrons = bandwidthMicrons
+        self.angstromExponent = angstromExponent
+        self.aerosolGrowthExponent = aerosolGrowthExponent
         self.fieldRotationDegrees = fieldRotationDegrees
         self.rightAscensionDegrees = rightAscensionDegrees
         self.declinationDegrees = declinationDegrees
@@ -130,10 +143,13 @@ public struct AtmosphericModel {
     }
 
     public var opticalDepth: Double {
-        RayleighMie.totalOpticalDepth(
-            wavelengthMicrons: telemetry.wavelengthMicrons,
+        RayleighMie.bandOpticalDepth(
+            centerMicrons: telemetry.wavelengthMicrons,
+            bandwidthMicrons: telemetry.bandwidthMicrons,
             beta: telemetry.aerosolOpticalDepth,
-            relativeHumidity: telemetry.relativeHumidity
+            relativeHumidity: telemetry.relativeHumidity,
+            alpha: telemetry.angstromExponent,
+            gamma: telemetry.aerosolGrowthExponent
         )
     }
 

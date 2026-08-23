@@ -3,73 +3,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 import FitsnFinishCore
 
-/// A named rig + site combination: everything the engine needs that isn't
-/// derived from the image itself.
-struct ProcessingPreset: Codable, Identifiable, Equatable {
-    var id = UUID()
-    var name: String
-    var latitude: Double
-    var longitude: Double
-    var targetAltitudeDegrees: Double
-    var targetAzimuthDegrees: Double
-    var relativeHumidity: Double
-    var aerosolOpticalDepth: Double
-    var fieldOfViewDegrees: Double
-    var degree: Int
-    var physicsStrength: Float
-    // 0.4.0 physics fields — decoded with defaults so pre-0.4.0 preset
-    // files keep importing.
-    var fieldRotationDegrees: Double = 0
-    var moonlightEnabled: Bool = true
-    var lightDomeAzimuthDegrees: Double = 0
-    var lightDomeIntensity: Double = 0
-
-    init(
-        id: UUID = UUID(), name: String,
-        latitude: Double, longitude: Double,
-        targetAltitudeDegrees: Double, targetAzimuthDegrees: Double,
-        relativeHumidity: Double, aerosolOpticalDepth: Double,
-        fieldOfViewDegrees: Double, degree: Int, physicsStrength: Float,
-        fieldRotationDegrees: Double = 0, moonlightEnabled: Bool = true,
-        lightDomeAzimuthDegrees: Double = 0, lightDomeIntensity: Double = 0
-    ) {
-        self.id = id
-        self.name = name
-        self.latitude = latitude
-        self.longitude = longitude
-        self.targetAltitudeDegrees = targetAltitudeDegrees
-        self.targetAzimuthDegrees = targetAzimuthDegrees
-        self.relativeHumidity = relativeHumidity
-        self.aerosolOpticalDepth = aerosolOpticalDepth
-        self.fieldOfViewDegrees = fieldOfViewDegrees
-        self.degree = degree
-        self.physicsStrength = physicsStrength
-        self.fieldRotationDegrees = fieldRotationDegrees
-        self.moonlightEnabled = moonlightEnabled
-        self.lightDomeAzimuthDegrees = lightDomeAzimuthDegrees
-        self.lightDomeIntensity = lightDomeIntensity
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
-        name = try container.decode(String.self, forKey: .name)
-        latitude = try container.decode(Double.self, forKey: .latitude)
-        longitude = try container.decode(Double.self, forKey: .longitude)
-        targetAltitudeDegrees = try container.decode(Double.self, forKey: .targetAltitudeDegrees)
-        targetAzimuthDegrees = try container.decode(Double.self, forKey: .targetAzimuthDegrees)
-        relativeHumidity = try container.decode(Double.self, forKey: .relativeHumidity)
-        aerosolOpticalDepth = try container.decode(Double.self, forKey: .aerosolOpticalDepth)
-        fieldOfViewDegrees = try container.decode(Double.self, forKey: .fieldOfViewDegrees)
-        degree = try container.decode(Int.self, forKey: .degree)
-        physicsStrength = try container.decode(Float.self, forKey: .physicsStrength)
-        fieldRotationDegrees = try container.decodeIfPresent(Double.self, forKey: .fieldRotationDegrees) ?? 0
-        moonlightEnabled = try container.decodeIfPresent(Bool.self, forKey: .moonlightEnabled) ?? true
-        lightDomeAzimuthDegrees = try container.decodeIfPresent(Double.self, forKey: .lightDomeAzimuthDegrees) ?? 0
-        lightDomeIntensity = try container.decodeIfPresent(Double.self, forKey: .lightDomeIntensity) ?? 0
-    }
-}
-
 /// UserDefaults-backed preset storage with JSON import/export.
 @MainActor
 final class PresetStore: ObservableObject {
@@ -105,7 +38,8 @@ final class PresetStore: ObservableObject {
             fieldRotationDegrees: model.telemetry.fieldRotationDegrees,
             moonlightEnabled: model.telemetry.moonlightEnabled,
             lightDomeAzimuthDegrees: model.telemetry.lightDomeAzimuthDegrees,
-            lightDomeIntensity: model.telemetry.lightDomeIntensity
+            lightDomeIntensity: model.telemetry.lightDomeIntensity,
+            angstromExponent: model.telemetry.angstromExponent
         )
     }
 
@@ -126,17 +60,7 @@ final class PresetStore: ObservableObject {
     }
 
     func apply(_ preset: ProcessingPreset, to model: DocumentModel) {
-        model.telemetry.latitude = preset.latitude
-        model.telemetry.longitude = preset.longitude
-        model.telemetry.targetAltitudeDegrees = preset.targetAltitudeDegrees
-        model.telemetry.targetAzimuthDegrees = preset.targetAzimuthDegrees
-        model.telemetry.relativeHumidity = preset.relativeHumidity
-        model.telemetry.aerosolOpticalDepth = preset.aerosolOpticalDepth
-        model.telemetry.fieldOfViewDegrees = preset.fieldOfViewDegrees
-        model.telemetry.fieldRotationDegrees = preset.fieldRotationDegrees
-        model.telemetry.moonlightEnabled = preset.moonlightEnabled
-        model.telemetry.lightDomeAzimuthDegrees = preset.lightDomeAzimuthDegrees
-        model.telemetry.lightDomeIntensity = preset.lightDomeIntensity
+        model.telemetry = preset.applied(to: model.telemetry)
         model.degree = PolynomialFitter.Degree(rawValue: preset.degree) ?? .linear
         model.physicsStrength = preset.physicsStrength
         model.statusMessage = "Applied preset “\(preset.name)”"

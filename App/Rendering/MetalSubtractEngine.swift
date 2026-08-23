@@ -105,6 +105,14 @@ final class MetalSubtractEngine: @unchecked Sendable {
 
     // MARK: Full GPU hybrid pipeline (one channel plane)
 
+    struct PlaneOutput {
+        let final: [Float]
+        /// Diagnostics: the actual surfaces that were subtracted, for the
+        /// app's Physical model / Polynomial surface view modes.
+        let prior: [Float]
+        let surface: [Float]
+    }
+
     /// Runs physics prior → gain fit → masked cell medians → sigma-clipped
     /// surface fit → blend for one plane. Returns nil (fall back to CPU)
     /// when Metal or any kernel is unavailable.
@@ -112,7 +120,7 @@ final class MetalSubtractEngine: @unchecked Sendable {
         pixels: [Float], width: Int, height: Int,
         renderModel: AtmosphericModel.RenderModel,
         physicsStrength: Float, fitter: PolynomialFitter
-    ) -> [Float]? {
+    ) -> PlaneOutput? {
         guard let device, let queue,
               let subtractPipeline, let priorPipeline,
               let medianPipeline, let surfacePipeline,
@@ -299,7 +307,13 @@ final class MetalSubtractEngine: @unchecked Sendable {
         blend.commit()
         blend.waitUntilCompleted()
 
-        return readRGBAFirstChannel(outputTexture, width: width, height: height)
+        guard let renderedSurface = readSingleChannel(surfaceTexture, width: width, height: height)
+        else { return nil }
+        return PlaneOutput(
+            final: readRGBAFirstChannel(outputTexture, width: width, height: height),
+            prior: prior,
+            surface: renderedSurface
+        )
     }
 
     // MARK: Legacy single-blend entry (kept for the CPU-computed path)

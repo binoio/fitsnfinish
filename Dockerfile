@@ -11,6 +11,7 @@ WORKDIR /package
 COPY Package.swift ./
 COPY CZLib ./CZLib
 COPY Core ./Core
+COPY CLI ./CLI
 COPY Tests ./Tests
 
 CMD ["swift", "test"]

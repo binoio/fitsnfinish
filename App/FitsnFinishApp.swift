@@ -215,7 +215,14 @@ final class DocumentModel: ObservableObject {
     @Published var original: FITSImage?
     /// Processed channel planes, matching `original.planes` in order.
     @Published var processed: [[Float]]?
-    @Published var showOriginal = false
+    enum ViewMode: String, CaseIterable, Identifiable {
+        case result = "Result"
+        case original = "Original"
+        case physicalModel = "Physical"
+        case surface = "Surface"
+        var id: String { rawValue }
+    }
+    @Published var viewMode: ViewMode = .result
     @Published var isProcessing = false
     @Published var statusMessage = "Ready"
     @Published var isImporterPresented = false
@@ -253,8 +260,31 @@ final class DocumentModel: ObservableObject {
         original.map { ($0.width, $0.height) }
     }
 
+    /// The actual subtracted surfaces from the most recent run, per channel
+    /// — stage 1 (physical model) and stage 2 (polynomial), independently
+    /// inspectable.
+    @Published private(set) var lastPriors: [[Float]]?
+    @Published private(set) var lastSurfaces: [[Float]]?
+
     var displayPlanes: [[Float]]? {
-        showOriginal ? original?.planes : (processed ?? original?.planes)
+        switch viewMode {
+        case .result: return processed ?? original?.planes
+        case .original: return original?.planes
+        case .physicalModel: return lastPriors.map(Self.normalizedForDisplay)
+        case .surface: return lastSurfaces.map(Self.normalizedForDisplay)
+        }
+    }
+
+    /// Diagnostic surfaces live in model units, not image units; min–max
+    /// normalize each plane so their shape is visible under the preview
+    /// stretch.
+    private static func normalizedForDisplay(_ planes: [[Float]]) -> [[Float]] {
+        planes.map { plane in
+            let lo = plane.min() ?? 0
+            let hi = plane.max() ?? 1
+            let span = max(hi - lo, 1e-9)
+            return plane.map { ($0 - lo) / span }
+        }
     }
 
     var exportDocument: FITSDocument? {
@@ -327,6 +357,9 @@ final class DocumentModel: ObservableObject {
             processed = nil
             history = [HistoryEntry(planes: nil, label: "Original")]
             historyIndex = 0
+            lastPriors = nil
+            lastSurfaces = nil
+            viewMode = .result
             fileName = url.lastPathComponent
             let channels = image.channelCount > 1 ? ", \(image.channelCount) channels" : ""
             var note = ""
@@ -436,6 +469,8 @@ final class DocumentModel: ObservableObject {
                                               sampleSpacing: pipeline.sampleSpacing)
                 var usedGPU = true
                 var final: [[Float]] = []
+                var priors: [[Float]] = []
+                var surfaces: [[Float]] = []
                 for (index, plane) in image.planes.enumerated() {
                     let wavelength = pipeline.wavelength(
                         forChannel: index, of: image.channelCount
@@ -450,7 +485,9 @@ final class DocumentModel: ObservableObject {
                         physicsStrength: pipeline.physicsStrength,
                         fitter: fitter
                     ) {
-                        final.append(gpu)
+                        final.append(gpu.final)
+                        priors.append(gpu.prior)
+                        surfaces.append(gpu.surface)
                     } else {
                         usedGPU = false
                         var channelPipeline = pipeline
@@ -459,12 +496,18 @@ final class DocumentModel: ObservableObject {
                             pixels: plane, width: image.width, height: image.height
                         )
                         final.append(result.pixels)
+                        priors.append(result.physicalPrior)
+                        surfaces.append(result.polynomialSurface)
                     }
                 }
                 let path = usedGPU ? "GPU" : "CPU"
                 let label = "Physics + degree-\(pipeline.degree.rawValue) fit (\(path))"
                 let planes = final
+                let diagnosticPriors = priors
+                let diagnosticSurfaces = surfaces
                 await MainActor.run {
+                    self.lastPriors = diagnosticPriors
+                    self.lastSurfaces = diagnosticSurfaces
                     self.recordRun(planes, label: label)
                     self.isProcessing = false
                     self.statusMessage = "Done — \(label.lowercased())"

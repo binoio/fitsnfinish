@@ -49,6 +49,9 @@ struct ControlsView: View {
                 LabeledContent("Aerosol depth (β)") {
                     TextField("AOD", value: $model.telemetry.aerosolOpticalDepth, format: .number)
                 }
+                LabeledContent("Ångström α") {
+                    TextField("α", value: $model.telemetry.angstromExponent, format: .number)
+                }
                 LabeledContent("Field rotation") {
                     TextField("deg", value: $model.telemetry.fieldRotationDegrees, format: .number)
                 }
@@ -83,8 +86,13 @@ struct ControlsView: View {
                 LabeledContent("Stretch midtone") {
                     Slider(value: $model.previewMidtone, in: 0.01 ... 0.5)
                 }
-                Toggle("Show original", isOn: $model.showOriginal)
-                    .disabled(model.processed == nil)
+                Picker("View", selection: $model.viewMode) {
+                    ForEach(DocumentModel.ViewMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(model.processed == nil)
             }
 
             Section {
