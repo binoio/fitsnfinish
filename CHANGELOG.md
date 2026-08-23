@@ -4,7 +4,7 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
-## Unreleased
+## 0.4.0 — 2026-08-23
 
 - **The physics now reads the sky from your file.** Pointing, field of
   view, and field rotation come straight from the image header (WCS plate
@@ -25,6 +25,21 @@ what users see in the in-app update dialog.
   Settings as Preset writes the current setup — no library window needed.
 - **File ▸ New Window is back**, and the Preset Library appears once in
   the Window menu.
+- **Inspect what was subtracted.** A view picker switches between the
+  Original, the Physical model, the fitted Surface, and the Result — the
+  actual per-channel surfaces from the last run.
+- **Sharper spectral modeling.** Optical depths are integrated across the
+  filter passband, and the Ångström aerosol exponent is now a visible,
+  preset-savable parameter.
+- **XISF files open natively** (PixInsight/Siril format): integer and
+  float samples, compressed blocks, embedded plate solutions honored.
+  A Siril/PixInsight workflow guide ships with the docs.
+- **`fnfin` command-line tool.** The same engine, headless:
+  `fnfin process --preset site.json *.fit`. Install with
+  `brew install mabino/tap/fnfin` or build from source.
+- **iPhone and iPad**: open stacks straight from the Files app and share
+  processed FITS files from the share sheet.
+- **Project page** at https://mabino.github.io/fitsnfinish/.
 
 ## 0.3.1 — 2026-08-23
 

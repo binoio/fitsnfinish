@@ -115,6 +115,14 @@ struct ControlsView: View {
                     .textSelection(.enabled)
 
                 #if !os(macOS)
+                if let shareItem = model.shareItem {
+                    ShareLink(
+                        item: shareItem,
+                        preview: SharePreview(shareItem.name, image: Image(systemName: "moon.stars"))
+                    ) {
+                        Label("Share Processed FITS", systemImage: "square.and.arrow.up")
+                    }
+                }
                 Button {
                     model.isPresetLibraryPresented = true
                 } label: {

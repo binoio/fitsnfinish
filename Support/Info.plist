@@ -16,6 +16,16 @@
 				<string>io.bino.fitsnfinish.fits</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>XISF Image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>io.bino.fitsnfinish.xisf</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>FitsnFinish</string>
@@ -70,6 +80,24 @@
 					<string>fits</string>
 					<string>fit</string>
 					<string>fts</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.image</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>XISF Image</string>
+			<key>UTTypeIdentifier</key>
+			<string>io.bino.fitsnfinish.xisf</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>xisf</string>
 				</array>
 			</dict>
 		</dict>

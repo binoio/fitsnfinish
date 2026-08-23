@@ -6,6 +6,10 @@ extension UTType {
     static var fits: UTType {
         UTType(filenameExtension: "fits") ?? .data
     }
+
+    static var xisf: UTType {
+        UTType(filenameExtension: "xisf") ?? .data
+    }
 }
 
 @main
@@ -68,6 +72,32 @@ struct FitsnFinishApp: App {
         #endif
     }
 }
+
+#if !os(macOS)
+/// Share-sheet payload: writes the processed frame as FITS on demand when
+/// the user picks a destination (AirDrop, Files, a stacking app…).
+struct ExportableFITS: Transferable {
+    let planes: [[Float]]
+    let width: Int
+    let height: Int
+    let header: FITSHeader?
+    let name: String
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .fits) { item in
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent(item.name)
+                .appendingPathExtension("fits")
+            let data = FITSWriter.data(
+                planes: item.planes, width: item.width, height: item.height,
+                preservingFrom: item.header
+            )
+            try data.write(to: url)
+            return SentTransferredFile(url)
+        }
+    }
+}
+#endif
 
 /// Wraps exported FITS bytes for the SwiftUI file exporter.
 struct FITSDocument: FileDocument {
@@ -145,11 +175,16 @@ struct ContentView: View {
             .onAppear { model.undoManager = undoManager }
             .fileImporter(
                 isPresented: $model.isImporterPresented,
-                allowedContentTypes: [.fits, .data]
+                allowedContentTypes: [.fits, .xisf, .data]
             ) { result in
                 if case .success(let url) = result {
                     model.open(url: url)
                 }
+            }
+            // Files-app / drag-in entry point (tap a FITS or XISF in Files,
+            // or hand one over from a smart-telescope app).
+            .onOpenURL { url in
+                model.open(url: url)
             }
             .fileExporter(
                 isPresented: $model.isExporterPresented,
@@ -338,6 +373,16 @@ final class DocumentModel: ObservableObject {
         }
         undoManager?.setActionName("Gradient Removal")
     }
+
+    #if !os(macOS)
+    var shareItem: ExportableFITS? {
+        guard let processed, let size = imageSize else { return nil }
+        return ExportableFITS(
+            planes: processed, width: size.width, height: size.height,
+            header: original?.header, name: exportFileName
+        )
+    }
+    #endif
 
     var exportFileName: String {
         (fileName as NSString?)?

@@ -54,27 +54,35 @@ The 1.x core list is complete.
 
 The 2.x smarter-physics list is complete.
 
-## 2.5 — Presence
+- **Project page** *(0.4.0, the 2.5 milestone)* — live at
+  [mabino.github.io/fitsnfinish](https://mabino.github.io/fitsnfinish/):
+  a real before/after render from the pipeline, the physics-first story,
+  features, and downloads.
+- **Reach** *(0.4.0, the 3.x list)* —
+  - *Batch mode:* the `fnfin` CLI (process/info, preset files, header
+    astrometry) ships as a cross-platform target and installs via
+    `brew install mabino/tap/fnfin`.
+  - *PixInsight / Siril interop:* monolithic XISF files open natively
+    (integer and float samples, zlib blocks, embedded FITSKeyword
+    astrometry), with a documented workflow guide
+    ([docs/interop.md](docs/interop.md)).
+  - *iPad and iPhone polish:* Files-app open-in-place entry, share-sheet
+    export of processed frames, and document-type registration that
+    smart-telescope apps can hand files to.
+  - *App Store distribution:* scaffolded — sandbox/WeatherKit entitlements
+    and the submission runbook live in `Support/`; the remaining steps
+    (App ID capability, ASC record, TestFlight) are interactive and
+    documented there.
 
-- **Project page.** Publish a GitHub Pages page for FITS n' Finish (the
-  `docs/` site already serves the Sparkle appcast and a stub index): what
-  the app does, the physics-first approach, screenshots, download link,
-  and release notes.
+The 2.5 and 3.x lists are complete (App Store submission awaits the
+interactive ASC steps).
 
-## 3.x — Reach
+## Beyond
 
-- **iPad and iPhone polish.** Files-app document browser entry point, share
-  sheet export, and camera-connect import for smart telescopes.
-- **Batch mode.** Headless CLI target — command name `fnfin` (e.g.
-  `fnfin process *.fit`) — reusing the same Core, for integration into
-  stacking pipelines. Optionally installable via a Homebrew formula
-  published in a new tap repository on this account
-  (`mabino/homebrew-tap`).
-- **PixInsight / Siril interop.** XISF read support and a documented
-  process-icon workflow comparing results against ABE/DBE.
-- **App Store distribution.** Sandboxing, WeatherKit entitlement, TestFlight
-  via Xcode Cloud, and the App Store Connect metadata already drafted in
-  [fitsnfinish.md](fitsnfinish.md).
+- Protected-region masking (user-defined regions excluded from the surface
+  fit) and richer subtraction diagnostics.
+- Live-stacking integration: evolve the prior frame-to-frame during a
+  session.
 
 ## Engineering debt
 

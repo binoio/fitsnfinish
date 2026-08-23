@@ -1,0 +1,15 @@
+<h2>FITS n' Finish 0.4.0</h2>
+<ul>
+<li><b>The physics now reads the sky from your file.</b>Pointing, field of view, and field rotation come straight from the image header (WCS plate solutions, RA/Dec cards, capture time, optics) — no more manual altitude/azimuth entry when the file knows better. Toggleable in the telemetry panel.</li>
+<li><b>Moonlight modeling.</b>Built-in solar and lunar ephemerides compute the moon&#x27;s position and phase for the capture time and add a Krisciunas–Schaefer scattering term to the prior — the largest natural gradient source after airmass.</li>
+<li><b>Directional light domes.</b>Point the model at your nearest city: a Garstang-style glow term on a chosen azimuth, saved with presets.</li>
+<li><b>Long exposures are modeled across time.</b>With coordinates and an exposure duration, the prior averages the sky as the target and moon move during the integration.</li>
+<li><b>Preset files from the File menu.</b>File ▸ Import Preset applies a preset file directly (and adds it to the library); File ▸ Export Settings as Preset writes the current setup — no library window needed.</li>
+<li><b>File ▸ New Window is back</b>, and the Preset Library appears once in the Window menu.</li>
+<li><b>Inspect what was subtracted.</b>A view picker switches between the Original, the Physical model, the fitted Surface, and the Result — the actual per-channel surfaces from the last run.</li>
+<li><b>Sharper spectral modeling.</b>Optical depths are integrated across the filter passband, and the Ångström aerosol exponent is now a visible, preset-savable parameter.</li>
+<li><b>XISF files open natively</b>(PixInsight/Siril format): integer and float samples, compressed blocks, embedded plate solutions honored. A Siril/PixInsight workflow guide ships with the docs.</li>
+<li><b>`fnfin` command-line tool.</b>The same engine, headless: `fnfin process --preset site.json *.fit`. Install with `brew install mabino/tap/fnfin` or build from source.</li>
+<li><b>iPhone and iPad</b>: open stacks straight from the Files app and share processed FITS files from the share sheet.</li>
+<li><b>Project page</b>at https://mabino.github.io/fitsnfinish/.</li>
+</ul>

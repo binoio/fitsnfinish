@@ -56,6 +56,9 @@ public enum FITSReader {
     }
 
     public static func read(data: Data) throws -> FITSImage {
+        if XISFReader.isXISF(data) {
+            return try XISFReader.read(data: data)
+        }
         let header = try FITSHeader(data: data)
         let naxis = try header.requiredInteger("NAXIS")
         if naxis == 0 {
