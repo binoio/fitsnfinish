@@ -36,18 +36,23 @@ physics first, low-order statistics second, faint flux preserved always.
 
 The 1.x core list is complete.
 
-## 2.x — Smarter physics
+- **Smarter physics** *(0.4.0, the 2.x list)* —
+  - *Pointing from the image:* the plate solve the file already carries
+    (WCS solution, RA/Dec cards, DATE-OBS, pixel scale from the CD matrix
+    or optics cards) populates pointing, field of view, and field rotation
+    (north angle + parallactic angle) automatically on open.
+  - *Moonlight model:* built-in low-precision solar and lunar ephemerides
+    (truncated Meeus series) drive a Krisciunas–Schaefer scattering term
+    for the moon's position and phase.
+  - *Directional light domes:* a Garstang-style azimuth-dependent glow
+    term, set per site and saved in presets. (Bundling the Falchi world
+    atlas raster is not redistributable; per-site presets carry the same
+    information where it matters.)
+  - *Time-resolved gradients:* with equatorial coordinates and an exposure
+    duration the prior is averaged over the exposure as the target and
+    moon move.
 
-- **Plate solving for automatic pointing.** Replace manual altitude/azimuth
-  entry with an on-device plate solve (or ASTAP/astrometry.net integration),
-  so field orientation and per-pixel altitude come from the image itself.
-- **Moonlight model.** Add lunar position and phase to the scattering prior —
-  the largest natural gradient source after airmass.
-- **Light-pollution atlas prior.** Blend a world atlas of artificial sky
-  brightness into the model so urban light domes get directional treatment
-  instead of relying on the polynomial stage.
-- **Time-resolved gradients.** For live-stacking workflows, evolve the prior
-  across a session as the target's altitude changes.
+The 2.x smarter-physics list is complete.
 
 ## 3.x — Reach
 

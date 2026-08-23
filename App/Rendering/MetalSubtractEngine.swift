@@ -26,8 +26,13 @@ final class MetalSubtractEngine: @unchecked Sendable {
 
     private struct PriorParams {
         var tau: Float
-        var altitudeCenterDegrees: Float
-        var fovYDegrees: Float
+        var extinction: Float
+        var pixScaleDegrees: Float
+        var rotationSine: Float
+        var rotationCosine: Float
+        var domeAzimuthDegrees: Float
+        var domeIntensity: Float
+        var sampleCount: UInt32
         var width: UInt32
         var height: UInt32
     }
@@ -105,7 +110,7 @@ final class MetalSubtractEngine: @unchecked Sendable {
     /// when Metal or any kernel is unavailable.
     func processPlane(
         pixels: [Float], width: Int, height: Int,
-        opticalDepth: Double, altitudeCenterDegrees: Double, fovYDegrees: Double,
+        renderModel: AtmosphericModel.RenderModel,
         physicsStrength: Float, fitter: PolynomialFitter
     ) -> [Float]? {
         guard let device, let queue,
@@ -134,19 +139,49 @@ final class MetalSubtractEngine: @unchecked Sendable {
             )
         else { return nil }
 
-        // 1. Physical prior on GPU.
+        // 1. Physical prior on GPU (airmass + dome + moon, time-averaged).
+        let sampleCount = min(renderModel.samples.count, 3)
         var priorParams = PriorParams(
-            tau: Float(opticalDepth),
-            altitudeCenterDegrees: Float(altitudeCenterDegrees),
-            fovYDegrees: Float(fovYDegrees),
+            tau: Float(renderModel.opticalDepth),
+            extinction: Float(renderModel.extinction),
+            pixScaleDegrees: Float(renderModel.pixelScaleDegrees),
+            rotationSine: Float(renderModel.rotationSine),
+            rotationCosine: Float(renderModel.rotationCosine),
+            domeAzimuthDegrees: Float(renderModel.lightDomeAzimuthDegrees),
+            domeIntensity: Float(renderModel.lightDomeIntensity),
+            sampleCount: UInt32(sampleCount),
             width: UInt32(width), height: UInt32(height)
         )
-        guard dispatch(
-            queue: queue, pipeline: priorPipeline,
-            textures: [priorTexture],
-            bytes: &priorParams, length: MemoryLayout<PriorParams>.stride,
-            gridWidth: width, gridHeight: height
+        var sampleValues = [Float]()
+        for sample in renderModel.samples.prefix(sampleCount) {
+            sampleValues.append(Float(sample.altitudeCenterDegrees))
+            sampleValues.append(Float(sample.azimuthCenterDegrees))
+            sampleValues.append(Float(sample.moonAltitudeDegrees))
+            sampleValues.append(Float(sample.moonAzimuthDegrees))
+            sampleValues.append(Float(sample.moonFactor))
+        }
+        guard let sampleBuffer = device.makeBuffer(
+            bytes: sampleValues,
+            length: sampleValues.count * MemoryLayout<Float>.stride,
+            options: .storageModeShared
         ) else { return nil }
+        guard let priorCommands = queue.makeCommandBuffer(),
+              let priorEncoder = priorCommands.makeComputeCommandEncoder()
+        else { return nil }
+        priorEncoder.setComputePipelineState(priorPipeline)
+        priorEncoder.setTexture(priorTexture, index: 0)
+        priorEncoder.setBytes(&priorParams, length: MemoryLayout<PriorParams>.stride, index: 0)
+        priorEncoder.setBuffer(sampleBuffer, offset: 0, index: 1)
+        let priorThreadgroup = MTLSize(width: 16, height: 16, depth: 1)
+        priorEncoder.dispatchThreadgroups(
+            MTLSize(
+                width: (width + 15) / 16, height: (height + 15) / 16, depth: 1
+            ),
+            threadsPerThreadgroup: priorThreadgroup
+        )
+        priorEncoder.endEncoding()
+        priorCommands.commit()
+        priorCommands.waitUntilCompleted()
 
         // 2. Prior gain (least squares) needs the prior values on CPU.
         guard let prior = readSingleChannel(priorTexture, width: width, height: height)

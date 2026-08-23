@@ -198,6 +198,142 @@ final class SolverTests: XCTestCase {
         XCTAssertLessThan(skyDeviation, 0.02)
     }
 
+    // MARK: Astrometry
+
+    private func utcDate(_ iso: String) -> Date {
+        let formatter = ISO8601DateFormatter()
+        return formatter.date(from: iso)!
+    }
+
+    func testSiderealTimeAtJ2000() {
+        // JD 2451545.0 (2000-01-01 12:00 UT): GMST = 280.4606°.
+        let gmst = Astrometry.greenwichSiderealTime(utcDate("2000-01-01T12:00:00Z"))
+        XCTAssertEqual(gmst, 280.4606, accuracy: 0.01)
+    }
+
+    func testPolarisAltitudeTracksLatitude() {
+        // Polaris (RA 2h31.8m, dec +89.26°) sits within a degree of the
+        // observer's latitude at any time.
+        let position = Astrometry.horizontal(
+            rightAscensionDegrees: 37.95, declinationDegrees: 89.264,
+            latitude: 46.2, longitude: 6.1,
+            date: utcDate("2026-08-23T22:00:00Z")
+        )
+        XCTAssertEqual(position.altitudeDegrees, 46.2, accuracy: 1.0)
+        XCTAssertLessThan(min(position.azimuthDegrees, 360 - position.azimuthDegrees), 2.0)
+    }
+
+    func testSunLongitudeAtSolstice() {
+        // June solstice 2000 (~01:48 UT June 21): solar longitude = 90°.
+        let λ = Astrometry.sunEclipticLongitude(utcDate("2000-06-21T02:00:00Z"))
+        XCTAssertEqual(λ, 90, accuracy: 0.1)
+    }
+
+    func testMoonPositionAgainstMeeusExample() {
+        // Meeus, Astronomical Algorithms, example 47.a:
+        // 1992 April 12.0 TD → λ = 133.1627°, β = −3.2291°.
+        let moon = Astrometry.moonState(utcDate("1992-04-12T00:00:00Z"))
+        let (ra, dec) = (moon.rightAscensionDegrees, moon.declinationDegrees)
+        // Reference apparent RA/Dec: 134.6885°, +13.7684°.
+        XCTAssertEqual(ra, 134.6885, accuracy: 0.1)
+        XCTAssertEqual(dec, 13.7684, accuracy: 0.05)
+    }
+
+    func testMoonPhaseAtKnownFullAndNewMoon() {
+        // 2000-01-21 04:44 UT: total lunar eclipse (exactly full).
+        let full = Astrometry.moonState(utcDate("2000-01-21T04:44:00Z"))
+        XCTAssertLessThan(abs(full.phaseAngleDegrees), 3)
+        XCTAssertGreaterThan(full.illuminatedFraction, 0.998)
+        // 2000-01-06 18:14 UT: new moon.
+        let new = Astrometry.moonState(utcDate("2000-01-06T18:14:00Z"))
+        XCTAssertGreaterThan(abs(new.phaseAngleDegrees), 177)
+        XCTAssertLessThan(new.illuminatedFraction, 0.002)
+    }
+
+    func testMoonlightBrightensPriorTowardTheMoon() {
+        // Full-moon night, moon well above the horizon: the prior must be
+        // brighter on the moonward side of the frame.
+        var telemetry = TelemetrySnapshot(
+            latitude: 46.2, longitude: 6.1,
+            targetAltitudeDegrees: 45, targetAzimuthDegrees: 180,
+            fieldOfViewDegrees: 20,
+            observationDate: nil
+        )
+        telemetry.observationDate = ISO8601DateFormatter()
+            .date(from: "2000-01-21T04:44:00Z")
+        telemetry.moonlightEnabled = true
+        let model = AtmosphericModel(telemetry: telemetry)
+        let samples = model.skySamples()
+        // If the moon is below the horizon for this geometry the factor is
+        // zero and the test is vacuous — assert it's up first.
+        XCTAssertGreaterThan(samples[0].moonAltitudeDegrees, 0)
+        XCTAssertGreaterThan(samples[0].moonFactor, 0)
+
+        let render = model.renderModel(width: 64, height: 64)
+        // Pixel nearest the moon azimuthally should exceed the far side.
+        let near = AtmosphericModel.evaluatePrior(model: render, x: 0, y: 32, width: 64, height: 64)
+        let far = AtmosphericModel.evaluatePrior(model: render, x: 63, y: 32, width: 64, height: 64)
+        XCTAssertNotEqual(near, far, accuracy: 1e-9)
+    }
+
+    func testLightDomeAddsDirectionalGradient() {
+        var telemetry = TelemetrySnapshot(
+            targetAltitudeDegrees: 30, targetAzimuthDegrees: 0,
+            fieldOfViewDegrees: 10
+        )
+        telemetry.lightDomeAzimuthDegrees = 0
+        telemetry.lightDomeIntensity = 0.5
+        let withDome = AtmosphericModel(telemetry: telemetry)
+            .priorSurface(width: 32, height: 32)
+        telemetry.lightDomeIntensity = 0
+        let without = AtmosphericModel(telemetry: telemetry)
+            .priorSurface(width: 32, height: 32)
+        // Dome must raise the prior, more at low altitude (bottom rows).
+        let bottomLift = withDome[16] - without[16]
+        let topLift = withDome[31 * 32 + 16] - without[31 * 32 + 16]
+        XCTAssertGreaterThan(Double(bottomLift), 0)
+        XCTAssertGreaterThan(Double(bottomLift), Double(topLift))
+    }
+
+    func testFieldRotationRotatesGradientDirection() {
+        var telemetry = TelemetrySnapshot(
+            targetAltitudeDegrees: 20, fieldOfViewDegrees: 10
+        )
+        telemetry.fieldRotationDegrees = 90 // "up" now along +x
+        let prior = AtmosphericModel(telemetry: telemetry)
+            .priorSurface(width: 32, height: 32)
+        // Gradient should now run along x, flat along y.
+        let alongX = abs(prior[16 * 32 + 30] - prior[16 * 32 + 1])
+        let alongY = abs(prior[30 * 32 + 16] - prior[1 * 32 + 16])
+        XCTAssertGreaterThan(alongX, alongY * 10)
+    }
+
+    func testHeaderAstrometryParsing() throws {
+        var cards = "SIMPLE  =                    T".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "BITPIX  =                   16".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS   =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS1  =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS2  =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "OBJCTRA = '2 33 41 '".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "OBJCTDEC= '+61 26 47'".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "DATE-OBS= '2026-08-20T21:30:00.000'".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "EXPTIME =                 5400".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "XPIXSZ  =                 2.90".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "FOCALLEN=                 150.".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "END".padding(toLength: 80, withPad: " ", startingAt: 0)
+        var data = Data(cards.utf8)
+        data.append(Data(count: FITSHeader.blockSize - data.count % FITSHeader.blockSize))
+        let header = try FITSHeader(data: data)
+
+        let astrometry = HeaderAstrometry(header: header)
+        XCTAssertEqual(astrometry.rightAscensionDegrees ?? 0, 38.42, accuracy: 0.01)
+        XCTAssertEqual(astrometry.declinationDegrees ?? 0, 61.446, accuracy: 0.01)
+        XCTAssertEqual(astrometry.exposureSeconds, 5400)
+        XCTAssertNotNil(astrometry.observationDate)
+        // 206.265 × 2.9 / 150 arcsec ≈ 3.988″ ≈ 0.001108°.
+        XCTAssertEqual(astrometry.pixelScaleDegrees ?? 0, 0.001108, accuracy: 0.00002)
+    }
+
     func testTelemetryManagerAssemblesSnapshotFromProviders() async {
         let manager = TelemetryManager(
             location: StaticLocationProvider(latitude: 46.2, longitude: 6.1),

@@ -50,33 +50,85 @@ kernel void mtf_stretch(
     output.write(float4(y, y, y, 1.0f), gid);
 }
 
-// Physical prior render: per-pixel Kasten–Young airmass through total
-// optical depth tau. Row 0 is the bottom of the frame (FITS convention),
-// matching the CPU reference in AtmosphericModel.priorSurface.
+// Physical prior render, mirroring AtmosphericModel.evaluatePrior: airmass
+// glow plus optional Garstang light-dome and Krisciunas–Schaefer moonlight
+// terms, averaged over up to three time samples (target/moon drift across
+// long exposures). Row 0 is the bottom of the frame (FITS convention).
+// Samples buffer layout: 5 floats per sample — altCenter, azCenter,
+// moonAlt, moonAz, moonFactor.
 struct PriorParams {
     float tau;
-    float altitudeCenterDegrees;
-    float fovYDegrees;
+    float extinction;
+    float pixScaleDegrees;
+    float rotationSine;
+    float rotationCosine;
+    float domeAzimuthDegrees;
+    float domeIntensity;
+    uint  sampleCount;
     uint  width;
     uint  height;
 };
 
+static inline float kasten_young_airmass(float altitudeDegrees)
+{
+    float altitude = clamp(altitudeDegrees, 0.0f, 90.0f);
+    float z = 90.0f - altitude;
+    return 1.0f / (cos(z * M_PI_F / 180.0f)
+                   + 0.50572f * pow(96.07995f - z, -1.6364f));
+}
+
 kernel void render_prior(
     texture2d<float, access::write> prior [[texture(0)]],
     constant PriorParams &p               [[buffer(0)]],
+    device const float *samples           [[buffer(1)]],
     uint2 gid                             [[thread_position_in_grid]])
 {
     if (gid.x >= p.width || gid.y >= p.height) {
         return;
     }
-    float fraction = p.height > 1
-        ? float(gid.y) / float(p.height - 1) - 0.5f
-        : 0.0f;
-    float altitude = clamp(p.altitudeCenterDegrees + fraction * p.fovYDegrees, 0.0f, 90.0f);
-    float z = 90.0f - altitude;
-    float airmass = 1.0f / (cos(z * M_PI_F / 180.0f)
-                            + 0.50572f * pow(96.07995f - z, -1.6364f));
-    float glow = 1.0f - exp(-p.tau * airmass);
+    float dx = (float(gid.x) - float(p.width - 1) * 0.5f) * p.pixScaleDegrees;
+    float dy = (float(gid.y) - float(p.height - 1) * 0.5f) * p.pixScaleDegrees;
+    float along = dx * p.rotationSine + dy * p.rotationCosine;
+    float across = dx * p.rotationCosine - dy * p.rotationSine;
+
+    float total = 0.0f;
+    for (uint s = 0; s < p.sampleCount; s++) {
+        float altCenter   = samples[s * 5 + 0];
+        float azCenter    = samples[s * 5 + 1];
+        float moonAlt     = samples[s * 5 + 2];
+        float moonAz      = samples[s * 5 + 3];
+        float moonFactor  = samples[s * 5 + 4];
+
+        float altitude = clamp(altCenter + along, 0.0f, 90.0f);
+        float airmass = kasten_young_airmass(altitude);
+        float value = 1.0f - exp(-p.tau * airmass);
+        float azimuth = azCenter
+            + across / max(cos(altitude * M_PI_F / 180.0f), 0.2f);
+
+        if (p.domeIntensity > 0.0f) {
+            float deltaAz = (azimuth - p.domeAzimuthDegrees) * M_PI_F / 180.0f;
+            value += p.domeIntensity * exp(-altitude / 10.0f)
+                   * (1.0f + cos(deltaAz)) * 0.5f;
+        }
+
+        if (moonFactor > 0.0f) {
+            float a1 = altitude * M_PI_F / 180.0f;
+            float a2 = moonAlt * M_PI_F / 180.0f;
+            float deltaAz = (azimuth - moonAz) * M_PI_F / 180.0f;
+            float cosSep = clamp(
+                sin(a1) * sin(a2) + cos(a1) * cos(a2) * cos(deltaAz),
+                -1.0f, 1.0f
+            );
+            float rho = max(acos(cosSep) * 180.0f / M_PI_F, 1.0f);
+            float cosRho = cos(rho * M_PI_F / 180.0f);
+            float scattering = pow(10.0f, 5.36f) * (1.06f + cosRho * cosRho)
+                             + pow(10.0f, 6.15f - rho / 40.0f);
+            float selfAbsorption = 1.0f - pow(10.0f, -0.4f * p.extinction * airmass);
+            value += moonFactor * scattering * selfAbsorption;
+        }
+        total += value;
+    }
+    float glow = total / float(p.sampleCount);
     prior.write(float4(glow, glow, glow, 1.0f), gid);
 }
 

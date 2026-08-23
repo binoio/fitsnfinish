@@ -23,7 +23,7 @@ struct FitsnFinishApp: App {
     #endif
 
     var body: some Scene {
-        WindowGroup("FITS n' Finish") {
+        WindowGroup("FITS n' Finish", id: "main") {
             ContentView()
                 .environmentObject(model)
                 .environmentObject(presets)
@@ -39,18 +39,20 @@ struct FitsnFinishApp: App {
             }
             #endif
             CommandGroup(replacing: .newItem) {
+                #if os(macOS)
+                Button("New Window") { openWindow(id: "main") }
+                    .keyboardShortcut("n")
+                Divider()
+                #endif
                 Button("Open FITS…") { model.isImporterPresented = true }
                     .keyboardShortcut("o")
                 Button("Export Processed FITS…") { model.isExporterPresented = true }
                     .keyboardShortcut("e")
                     .disabled(model.processed == nil)
+                Divider()
+                Button("Import Preset…") { model.isPresetImporterPresented = true }
+                Button("Export Settings as Preset…") { model.isPresetExporterPresented = true }
             }
-            #if os(macOS)
-            CommandGroup(after: .windowList) {
-                Button("Preset Library") { openWindow(id: "preset-library") }
-                    .keyboardShortcut("p", modifiers: [.command, .shift])
-            }
-            #endif
         }
 
         #if os(macOS)
@@ -88,7 +90,20 @@ struct FITSDocument: FileDocument {
 
 struct ContentView: View {
     @EnvironmentObject private var model: DocumentModel
+    @EnvironmentObject private var presets: PresetStore
     @Environment(\.undoManager) private var undoManager
+
+    private func importPreset(from url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+        }
+        do {
+            try presets.importAndApply(data: Data(contentsOf: url), to: model)
+        } catch {
+            model.statusMessage = "Preset import failed: \(error.localizedDescription)"
+        }
+    }
     #if !os(macOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
@@ -101,6 +116,32 @@ struct ContentView: View {
                 PresetLibraryView()
             }
             #endif
+            .fileImporter(
+                isPresented: $model.isPresetImporterPresented,
+                allowedContentTypes: [.json]
+            ) { result in
+                if case .success(let url) = result {
+                    importPreset(from: url)
+                }
+            }
+            .fileExporter(
+                isPresented: $model.isPresetExporterPresented,
+                document: try? PresetsDocument(
+                    data: presets.exportCurrentData(
+                        from: model,
+                        name: (model.fileName as NSString?)?.deletingPathExtension ?? "Preset"
+                    )
+                ),
+                contentType: .json,
+                defaultFilename: (model.fileName as NSString?)?.deletingPathExtension ?? "Preset"
+            ) { result in
+                switch result {
+                case .success(let url):
+                    model.statusMessage = "Exported preset \(url.lastPathComponent)"
+                case .failure(let error):
+                    model.statusMessage = "Preset export failed: \(error.localizedDescription)"
+                }
+            }
             .onAppear { model.undoManager = undoManager }
             .fileImporter(
                 isPresented: $model.isImporterPresented,
@@ -180,6 +221,10 @@ final class DocumentModel: ObservableObject {
     @Published var isImporterPresented = false
     @Published var isExporterPresented = false
     @Published var isPresetLibraryPresented = false
+    @Published var isPresetImporterPresented = false
+    @Published var isPresetExporterPresented = false
+    /// Populate pointing/timing from the image header on open.
+    @Published var usesHeaderAstrometry = true
 
     // Session-scoped processing history. Entries hold copy-on-write
     // references to run outputs (no pixel copying); entry 0 is always the
@@ -284,10 +329,54 @@ final class DocumentModel: ObservableObject {
             historyIndex = 0
             fileName = url.lastPathComponent
             let channels = image.channelCount > 1 ? ", \(image.channelCount) channels" : ""
-            statusMessage = "Loaded \(image.width)×\(image.height)\(channels), BITPIX \(image.header.bitpix)"
+            var note = ""
+            if usesHeaderAstrometry, applyHeaderAstrometry(from: image) {
+                note = " — pointing from header"
+            }
+            statusMessage = "Loaded \(image.width)×\(image.height)\(channels), BITPIX \(image.header.bitpix)\(note)"
         } catch {
             statusMessage = "Open failed: \(error)"
         }
+    }
+
+    /// Fills telemetry from whatever pointing/timing the file carries.
+    /// Returns true when something was applied.
+    private func applyHeaderAstrometry(from image: FITSImage) -> Bool {
+        let astrometry = HeaderAstrometry(header: image.header)
+        var applied = false
+        if let scale = astrometry.pixelScaleDegrees {
+            telemetry.fieldOfViewDegrees = scale * Double(image.width)
+            applied = true
+        }
+        if let date = astrometry.observationDate {
+            telemetry.observationDate = date
+            telemetry.exposureSeconds = astrometry.exposureSeconds ?? 0
+            applied = true
+        }
+        if let ra = astrometry.rightAscensionDegrees,
+           let dec = astrometry.declinationDegrees {
+            telemetry.rightAscensionDegrees = ra
+            telemetry.declinationDegrees = dec
+            applied = true
+            if let date = telemetry.observationDate {
+                let position = Astrometry.horizontal(
+                    rightAscensionDegrees: ra, declinationDegrees: dec,
+                    latitude: telemetry.latitude, longitude: telemetry.longitude,
+                    date: date
+                )
+                telemetry.targetAltitudeDegrees = position.altitudeDegrees
+                telemetry.targetAzimuthDegrees = position.azimuthDegrees
+                if let north = astrometry.northAngleDegrees {
+                    let parallactic = Astrometry.parallacticAngle(
+                        rightAscensionDegrees: ra, declinationDegrees: dec,
+                        latitude: telemetry.latitude, longitude: telemetry.longitude,
+                        date: date
+                    )
+                    telemetry.fieldRotationDegrees = north + parallactic
+                }
+            }
+        }
+        return applied
     }
 
     // MARK: Processing
@@ -345,24 +434,19 @@ final class DocumentModel: ObservableObject {
                 // available; the CPU pipeline is the reference fallback.
                 let fitter = PolynomialFitter(degree: pipeline.degree,
                                               sampleSpacing: pipeline.sampleSpacing)
-                let fovY = pipeline.telemetry.fieldOfViewDegrees
-                    * Double(image.height) / Double(image.width)
                 var usedGPU = true
                 var final: [[Float]] = []
                 for (index, plane) in image.planes.enumerated() {
                     let wavelength = pipeline.wavelength(
                         forChannel: index, of: image.channelCount
                     )
-                    let tau = RayleighMie.totalOpticalDepth(
-                        wavelengthMicrons: wavelength,
-                        beta: pipeline.telemetry.aerosolOpticalDepth,
-                        relativeHumidity: pipeline.telemetry.relativeHumidity
-                    )
+                    var channelTelemetry = pipeline.telemetry
+                    channelTelemetry.wavelengthMicrons = wavelength
+                    let renderModel = AtmosphericModel(telemetry: channelTelemetry)
+                        .renderModel(width: image.width, height: image.height)
                     if let gpu = engine.processPlane(
                         pixels: plane, width: image.width, height: image.height,
-                        opticalDepth: tau,
-                        altitudeCenterDegrees: pipeline.telemetry.targetAltitudeDegrees,
-                        fovYDegrees: fovY,
+                        renderModel: renderModel,
                         physicsStrength: pipeline.physicsStrength,
                         fitter: fitter
                     ) {

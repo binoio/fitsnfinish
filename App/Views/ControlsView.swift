@@ -49,6 +49,20 @@ struct ControlsView: View {
                 LabeledContent("Aerosol depth (β)") {
                     TextField("AOD", value: $model.telemetry.aerosolOpticalDepth, format: .number)
                 }
+                LabeledContent("Field rotation") {
+                    TextField("deg", value: $model.telemetry.fieldRotationDegrees, format: .number)
+                }
+                Toggle("Pointing from image header", isOn: $model.usesHeaderAstrometry)
+                Toggle("Moonlight model", isOn: $model.telemetry.moonlightEnabled)
+                LabeledContent("Light dome azimuth") {
+                    TextField("deg", value: $model.telemetry.lightDomeAzimuthDegrees, format: .number)
+                }
+                LabeledContent("Light dome strength") {
+                    Slider(value: $model.telemetry.lightDomeIntensity, in: 0 ... 1)
+                    Text(String(format: "%.2f", model.telemetry.lightDomeIntensity))
+                        .monospacedDigit()
+                        .frame(width: 44, alignment: .trailing)
+                }
             }
 
             Section("Hybrid Engine") {

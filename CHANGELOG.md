@@ -4,6 +4,28 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
+## Unreleased
+
+- **The physics now reads the sky from your file.** Pointing, field of
+  view, and field rotation come straight from the image header (WCS plate
+  solutions, RA/Dec cards, capture time, optics) — no more manual
+  altitude/azimuth entry when the file knows better. Toggleable in the
+  telemetry panel.
+- **Moonlight modeling.** Built-in solar and lunar ephemerides compute the
+  moon's position and phase for the capture time and add a
+  Krisciunas–Schaefer scattering term to the prior — the largest natural
+  gradient source after airmass.
+- **Directional light domes.** Point the model at your nearest city: a
+  Garstang-style glow term on a chosen azimuth, saved with presets.
+- **Long exposures are modeled across time.** With coordinates and an
+  exposure duration, the prior averages the sky as the target and moon
+  move during the integration.
+- **Preset files from the File menu.** File ▸ Import Preset applies a
+  preset file directly (and adds it to the library); File ▸ Export
+  Settings as Preset writes the current setup — no library window needed.
+- **File ▸ New Window is back**, and the Preset Library appears once in
+  the Window menu.
+
 ## 0.3.1 — 2026-08-23
 
 - **Preset Library.** Preset management moved out of Settings into its own
