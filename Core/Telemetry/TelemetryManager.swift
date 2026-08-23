@@ -110,9 +110,19 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
             let status = manager.authorizationStatus
             switch status {
             case .notDetermined:
+                #if os(macOS)
                 manager.requestWhenInUseAuthorization()
-            case .authorizedWhenInUse, .authorizedAlways:
+                manager.startUpdatingLocation()
+                #else
+                manager.requestWhenInUseAuthorization()
                 manager.requestLocation()
+                #endif
+            case .authorizedWhenInUse, .authorizedAlways:
+                #if os(macOS)
+                manager.startUpdatingLocation()
+                #else
+                manager.requestLocation()
+                #endif
             case .denied, .restricted:
                 self.continuation = nil
                 continuation.resume(throwing: NSError(
@@ -120,7 +130,11 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
                     userInfo: [NSLocalizedDescriptionKey: "Location access denied"]
                 ))
             @unknown default:
+                #if os(macOS)
+                manager.startUpdatingLocation()
+                #else
                 manager.requestLocation()
+                #endif
             }
         }
     }
@@ -129,8 +143,15 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
         guard continuation != nil else { return }
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
+            #if os(macOS)
+            manager.startUpdatingLocation()
+            #else
             manager.requestLocation()
+            #endif
         case .denied, .restricted:
+            #if os(macOS)
+            manager.stopUpdatingLocation()
+            #endif
             continuation?.resume(throwing: NSError(
                 domain: kCLErrorDomain, code: Int(CLError.denied.rawValue),
                 userInfo: [NSLocalizedDescriptionKey: "Location access denied"]
@@ -139,17 +160,27 @@ public final class CoreLocationProvider: NSObject, LocationProviding, CLLocation
         case .notDetermined:
             break
         @unknown default:
+            #if os(macOS)
+            manager.startUpdatingLocation()
+            #else
             manager.requestLocation()
+            #endif
         }
     }
 
     public func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let location = locations.last else { return }
+        #if os(macOS)
+        manager.stopUpdatingLocation()
+        #endif
         continuation?.resume(returning: (location.coordinate.latitude, location.coordinate.longitude))
         continuation = nil
     }
 
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        #if os(macOS)
+        manager.stopUpdatingLocation()
+        #endif
         continuation?.resume(throwing: error)
         continuation = nil
     }

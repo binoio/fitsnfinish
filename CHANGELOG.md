@@ -4,6 +4,12 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
+## 0.4.2 — 2026-08-23
+
+- **macOS Location prompt trigger.** Fixed macOS CoreLocation flow to
+  explicitly trigger the system authorization dialog and location updates
+  via `startUpdatingLocation()`.
+
 ## 0.4.1 — 2026-08-23
 
 - **CoreLocation authorization on macOS.** Fixed an issue where clicking
