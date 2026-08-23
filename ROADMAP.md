@@ -54,12 +54,22 @@ The 1.x core list is complete.
 
 The 2.x smarter-physics list is complete.
 
+## 2.5 — Presence
+
+- **Project page.** Publish a GitHub Pages page for FITS n' Finish (the
+  `docs/` site already serves the Sparkle appcast and a stub index): what
+  the app does, the physics-first approach, screenshots, download link,
+  and release notes.
+
 ## 3.x — Reach
 
 - **iPad and iPhone polish.** Files-app document browser entry point, share
   sheet export, and camera-connect import for smart telescopes.
-- **Batch mode.** Headless CLI target (`fitsnfinish process *.fit`) reusing
-  the same Core, for integration into stacking pipelines.
+- **Batch mode.** Headless CLI target — command name `fnfin` (e.g.
+  `fnfin process *.fit`) — reusing the same Core, for integration into
+  stacking pipelines. Optionally installable via a Homebrew formula
+  published in a new tap repository on this account
+  (`mabino/homebrew-tap`).
 - **PixInsight / Siril interop.** XISF read support and a documented
   process-icon workflow comparing results against ABE/DBE.
 - **App Store distribution.** Sandboxing, WeatherKit entitlement, TestFlight
