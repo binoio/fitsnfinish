@@ -98,6 +98,10 @@ public enum FITSReader {
             physical = payload.withUnsafeBytes { raw in
                 raw.bindMemory(to: Int32.self).map { Double(Int32(bigEndian: $0)) }
             }
+        case 64:
+            physical = payload.withUnsafeBytes { raw in
+                raw.bindMemory(to: Int64.self).map { Double(Int64(bigEndian: $0)) }
+            }
         case -32:
             physical = payload.withUnsafeBytes { raw in
                 raw.bindMemory(to: UInt32.self).map {
@@ -138,6 +142,8 @@ public enum FITSReader {
         case 16: range = normalizationRange(bzero: bzero, bscale: bscale, lo: -32768, hi: 32767)
         case 32: range = normalizationRange(bzero: bzero, bscale: bscale,
                                             lo: Double(Int32.min), hi: Double(Int32.max))
+        case 64: range = normalizationRange(bzero: bzero, bscale: bscale,
+                                            lo: Double(Int64.min), hi: Double(Int64.max))
         default:
             let lo = scaled.min() ?? 0
             let hi = scaled.max() ?? 1

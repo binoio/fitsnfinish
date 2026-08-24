@@ -50,12 +50,22 @@ struct FitsnFinishApp: App {
                 #endif
                 Button("Open FITS…") { model.isImporterPresented = true }
                     .keyboardShortcut("o")
+                Button("Get Info…") { model.isInfoPresented = true }
+                    .keyboardShortcut("i")
+                    .disabled(model.original == nil)
                 Button("Export Processed FITS…") { model.isExporterPresented = true }
                     .keyboardShortcut("e")
                     .disabled(model.processed == nil)
                 Divider()
                 Button("Import Preset…") { model.isPresetImporterPresented = true }
                 Button("Export Settings as Preset…") { model.isPresetExporterPresented = true }
+            }
+            CommandMenu("Operations") {
+                Button(model.processed == nil ? "Remove Gradients" : "Recompute Gradients") {
+                    model.process()
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+                .disabled(model.original == nil || model.isProcessing)
             }
         }
 
@@ -199,6 +209,21 @@ struct ContentView: View {
                     model.statusMessage = "Export failed: \(error.localizedDescription)"
                 }
             }
+            .sheet(isPresented: $model.isInfoPresented) {
+                FITSInfoView()
+                    .environmentObject(model)
+            }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        model.isInfoPresented = true
+                    } label: {
+                        Label("Get Info", systemImage: "info.circle")
+                    }
+                    .disabled(model.original == nil)
+                    .help("Show FITS image resolution, pointing, and header details (⌘I)")
+                }
+            }
     }
 
     @ViewBuilder
@@ -234,7 +259,7 @@ struct ContentView: View {
             ContentUnavailableView {
                 Label("No Image", systemImage: "moon.stars")
             } description: {
-                Text("Open a 16-bit FITS frame to begin.")
+                Text("Open a FITS or XISF image to begin.")
             } actions: {
                 Button("Open FITS…") { model.isImporterPresented = true }
             }
@@ -259,12 +284,13 @@ final class DocumentModel: ObservableObject {
     }
     @Published var viewMode: ViewMode = .result
     @Published var isProcessing = false
-    @Published var statusMessage = "Ready"
+    @Published var statusMessage = ""
     @Published var isImporterPresented = false
     @Published var isExporterPresented = false
     @Published var isPresetLibraryPresented = false
     @Published var isPresetImporterPresented = false
     @Published var isPresetExporterPresented = false
+    @Published var isInfoPresented = false
     /// Populate pointing/timing from the image header on open.
     @Published var usesHeaderAstrometry = true
 
@@ -406,12 +432,10 @@ final class DocumentModel: ObservableObject {
             lastSurfaces = nil
             viewMode = .result
             fileName = url.lastPathComponent
-            let channels = image.channelCount > 1 ? ", \(image.channelCount) channels" : ""
-            var note = ""
-            if usesHeaderAstrometry, applyHeaderAstrometry(from: image) {
-                note = " — pointing from header"
+            if usesHeaderAstrometry {
+                _ = applyHeaderAstrometry(from: image)
             }
-            statusMessage = "Loaded \(image.width)×\(image.height)\(channels), BITPIX \(image.header.bitpix)\(note)"
+            statusMessage = ""
         } catch {
             statusMessage = "Open failed: \(error)"
         }

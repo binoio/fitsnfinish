@@ -68,6 +68,30 @@ final class FITSTests: XCTestCase {
         XCTAssertEqual(image.pixels[3], 0.25, accuracy: 1e-4)
     }
 
+    func testReads64BitIntegerFITS() throws {
+        var cards = "SIMPLE  =                    T".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "BITPIX  =                   64".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS   =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS1  =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "NAXIS2  =                    2".padding(toLength: 80, withPad: " ", startingAt: 0)
+        cards += "END".padding(toLength: 80, withPad: " ", startingAt: 0)
+        var data = Data(cards.utf8)
+        data.append(Data(count: FITSHeader.blockSize - data.count % FITSHeader.blockSize))
+
+        // Storage-range extremes and zero: min → 0, zero → 0.5, max → 1.
+        for value in [Int64.min, 0, Int64.max, 0] {
+            withUnsafeBytes(of: value.bigEndian) { data.append(contentsOf: $0) }
+        }
+        data.append(Data(count: FITSHeader.blockSize - (4 * 8) % FITSHeader.blockSize))
+
+        let image = try FITSReader.read(data: data)
+        XCTAssertEqual(image.header.bitpix, 64)
+        XCTAssertEqual(image.pixels[0], 0, accuracy: 1e-6)
+        XCTAssertEqual(image.pixels[1], 0.5, accuracy: 1e-6)
+        XCTAssertEqual(image.pixels[2], 1, accuracy: 1e-6)
+        XCTAssertEqual(image.pixels[3], 0.5, accuracy: 1e-6)
+    }
+
     func testRoundTripPreservesPixels() throws {
         var pixels = [Float](repeating: 0, count: 100)
         for k in 0 ..< pixels.count {
