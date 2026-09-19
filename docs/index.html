@@ -244,77 +244,65 @@
         <header>
             <img src="icon.png" alt="FITS n' Finish App Icon" class="app-icon">
             <h1>FITS n&rsquo; Finish</h1>
-            <p class="subtitle">Physics-first gradient removal for astrophotography, on macOS and iOS. A scattering model takes out the skyglow; a stiff low-order surface finishes; faint nebulosity survives.</p>
+            <p class="subtitle">Gradient removal for astrophotography that starts from the sky itself, on macOS and iOS. The glow of the atmosphere is modeled and subtracted first, so faint nebulosity is left alone.</p>
             <a href="https://github.com/binoio/fitsnfinish/releases/latest" class="cta">Download for macOS</a>
         </header>
 
         <section class="prose">
             <h2>The sky is not a polynomial</h2>
             <p>
-                Background extraction tools treat your image as an isolated numerical grid:
-                place enough sample boxes, fit a high-order surface, and hope it doesn&rsquo;t
-                swallow your nebulosity. FITS n&rsquo; Finish starts from the physics instead.
-                A physically motivated atmospheric-scattering model &mdash; driven by where
-                the telescope pointed, when, and through what air &mdash; predicts the shape
-                of the steep, non-linear skyglow baseline; its amplitude is fitted to your
-                frame and subtracted first. What remains is gentle enough that a 1st or
-                2nd-degree surface finishes the job &mdash; and a surface that stiff has
-                almost no freedom to follow faint extended structure. Integrated flux
-                nebula and outer galaxy halos survive, and you can inspect exactly what
-                each stage subtracted.
+                Most background tools treat your image as just numbers: place enough
+                sample boxes, fit a flexible surface, and hope it doesn&rsquo;t erase
+                the faint nebula along with the glow. FITS n&rsquo; Finish starts from
+                the physics instead. It knows where the telescope pointed, when, and
+                through how much air, and from that predicts the shape of the sky glow
+                across the frame. That glow is matched to your image and removed first.
+                What is left is smooth enough for a very simple surface to finish the
+                job &mdash; and a surface that simple cannot bend itself around faint,
+                extended targets. Outer galaxy halos and dim nebulosity survive, and you
+                can look at exactly what each step took away.
             </p>
         </section>
 
-        <div class="compare">
-            <figure>
-                <img src="before.png" alt="IC 1805 stack before gradient removal: warm skyglow across the frame">
-                <figcaption>Before &mdash; 90&thinsp;min IC&thinsp;1805 stack, warm skyglow cast</figcaption>
-            </figure>
-            <figure>
-                <img src="after.png" alt="Same stack after: neutral, flat background with nebulosity intact">
-                <figcaption>After &mdash; flat, neutral background; the nebula untouched</figcaption>
-            </figure>
-        </div>
-
         <section class="features">
             <div class="feature-card">
-                <h3>🎯 Pointing From Your File</h3>
-                <p>WCS plate solutions, RA/Dec cards, capture time and optics geometry set altitude, field of view and field rotation automatically on open.</p>
+                <h3>Pointing From Your File</h3>
+                <p>Plate solutions, coordinates, capture time and optics details in the file set where the telescope was pointing and how the sky was oriented, automatically on open.</p>
             </div>
             <div class="feature-card">
-                <h3>🌈 Per-Channel Scattering</h3>
-                <p>Rayleigh&rsquo;s &lambda;<sup>&minus;4</sup> law runs per color channel &mdash; the blue sky gradient is modeled steeper than the red, because it is.</p>
+                <h3>Color-Aware</h3>
+                <p>Sky glow is bluer and steeper than it is red, so each color channel gets its own model instead of one shared gradient.</p>
             </div>
             <div class="feature-card">
-                <h3>🌙 Moonlight</h3>
-                <p>Built-in solar and lunar ephemerides add a Krisciunas&ndash;Schaefer scattering term for the moon&rsquo;s position and phase at capture time.</p>
+                <h3>Moonlight</h3>
+                <p>The moon&rsquo;s position and phase at capture time are computed and its scattered light is included in the model.</p>
             </div>
             <div class="feature-card">
-                <h3>🏙️ Light Domes</h3>
-                <p>A directional Garstang glow term points at your nearest city, saved with per-site presets.</p>
+                <h3>Light Domes</h3>
+                <p>The glow from a nearby city is modeled in its direction and saved with per-site presets.</p>
             </div>
             <div class="feature-card">
-                <h3>⏱️ Long Exposures</h3>
-                <p>The prior is averaged across the integration as the target and moon move.</p>
+                <h3>Long Exposures</h3>
+                <p>Over a long session the target and the moon move; the model averages the sky across the whole integration.</p>
             </div>
             <div class="feature-card">
-                <h3>⭐ Star-Proof Fitting</h3>
-                <p>Bright-star masking, halo dilation and sigma-clipped refits keep saturated stars from tilting the surface.</p>
+                <h3>Star-Proof Fitting</h3>
+                <p>Bright stars and their halos are masked out so they cannot tilt the background fit.</p>
             </div>
             <div class="feature-card">
-                <h3>🗂️ All of FITS</h3>
-                <p>Color cubes, multi-HDU files and every fpack tile compression: RICE, GZIP, HCOMPRESS, PLIO, dithered quantization. WCS survives export.</p>
+                <h3>All of FITS</h3>
+                <p>Color stacks, multi-image files and every common FITS compression open directly. Plate-solve data survives export.</p>
             </div>
             <div class="feature-card">
-                <h3>🔍 Inspectable Stages</h3>
-                <p>Toggle between the original, the physical model, the fitted surface and the result &mdash; see the actual surfaces being subtracted.</p>
+                <h3>Inspectable Stages</h3>
+                <p>Switch between the original, the modeled sky, the fitted surface and the result to see exactly what was subtracted.</p>
             </div>
             <div class="feature-card">
-                <h3>⚡ Fast</h3>
-                <p>The whole per-pixel pipeline runs as Metal compute kernels, bit-identical to the CPU reference path.</p>
+                <h3>Fast</h3>
+                <p>The whole pipeline runs on the GPU, with results identical to the reference implementation.</p>
             </div>
             <div class="feature-card">
-                <h3>✨ Sparkle 2 Updates</h3>
+                <h3>Automatic Updates</h3>
                 <p>Updates arrive in-app with release notes, signed and notarized.</p>
             </div>
         </section>
@@ -322,36 +310,17 @@
         <section class="prose">
             <h2>Fits your workflow</h2>
             <p>
-                Use it before stretching, alongside Siril or PixInsight &mdash; open a stack
-                (FITS or XISF), remove the gradient, export a 16-bit FITS with the WCS
-                intact, and carry on. Rig-and-site presets import and export as plain
-                JSON, a headless <code>fnfin</code> CLI scripts the same engine, and
-                updates arrive in-app with release notes.
+                Use it before stretching, alongside Siril or PixInsight: open a stack
+                (FITS or XISF), remove the gradient, export a 16-bit FITS with the
+                plate-solve data intact, and carry on. Rig and site presets are plain
+                JSON files you can share between machines, and a command-line tool runs
+                the same engine for scripting.
                 <a href="interop.html">Workflow guide for Siril and PixInsight users</a>.
             </p>
         </section>
 
-        <section class="specs">
-            <h2>Technical Specifications</h2>
-            <div class="specs-grid">
-                <div class="spec-item">
-                    <label>Platform</label>
-                    <span>macOS 14.0+ (Sonoma, Sequoia, Tahoe) &middot; iOS</span>
-                </div>
-                <div class="spec-item">
-                    <label>Architecture</label>
-                    <span>Apple Silicon &amp; Intel, SwiftUI + Metal</span>
-                </div>
-                <div class="spec-item">
-                    <label>Security</label>
-                    <span>Apple Developer Signed &amp; Notarized</span>
-                </div>
-                <div class="spec-item">
-                    <label>Formats</label>
-                    <span>FITS (incl. fpack), XISF in; 16-bit FITS out</span>
-                </div>
-            </div>
-            <p style="margin-top: 20px; color: var(--secondary); font-size: 0.95rem;">
+        <section class="prose" style="margin-top: 32px;">
+            <p style="color: var(--secondary); font-size: 0.95rem;">
                 <a href="https://github.com/binoio/fitsnfinish">Source on GitHub</a> &middot;
                 <a href="https://github.com/binoio/fitsnfinish/releases">Releases</a> &middot;
                 <a href="https://github.com/binoio/fitsnfinish/blob/main/CHANGELOG.md">Changelog</a> &middot;
