@@ -7,13 +7,13 @@
 #   1. App Store Connect API key: xcrun notarytool store-credentials <profile> \
 #        --key AuthKey_XXXX.p8 --key-id XXXX --issuer <issuer-uuid>
 #   2. Sparkle EdDSA key pair in the login Keychain (bin/generate_keys).
-#   3. gh auth login with access to mabino/fitsnfinish.
+#   3. gh auth login with access to binoio/fitsnfinish.
 
 set -euo pipefail
 
 IDENTITY="${FF_SIGN_IDENTITY:-Developer ID Application: Michael Bino (43L352U8Y8)}"
 NOTARY_PROFILE="${FF_NOTARY_PROFILE:-kona-notary}"
-REPO="mabino/fitsnfinish"
+REPO="binoio/fitsnfinish"
 BUNDLE_ID="io.bino.fitsnfinish"
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

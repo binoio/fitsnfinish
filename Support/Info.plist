@@ -60,7 +60,7 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>SUFeedURL</key>
-	<string>https://mabino.github.io/fitsnfinish/appcast.xml</string>
+	<string>https://binoio.github.io/fitsnfinish/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>nDAE5HXFYg6pBQbAFtyEObXbHu9N7TM+7zUivRcRqNA=</string>
 	<key>UIFileSharingEnabled</key>

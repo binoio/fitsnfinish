@@ -1,139 +1,368 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FITS n' Finish — physics-first gradient removal for astrophotography</title>
-<meta name="description" content="Hybrid atmospheric gradient subtraction for macOS and iOS: a deterministic Rayleigh/Mie skyglow model removes the airmass baseline, a low-order surface fit cleans the rest — faint nebulosity survives.">
-<link rel="icon" href="icon.png">
-<style>
-  :root {
-    --bg: #f7f7f9; --fg: #1c1c22; --muted: #5c5c66; --card: #ffffff;
-    --accent: #4a5fc1; --border: #e2e2ea;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0b0d16; --fg: #e8e8ef; --muted: #9a9aa8; --card: #151827;
-      --accent: #8fa1f2; --border: #262a3d;
-    }
-  }
-  * { box-sizing: border-box; margin: 0; }
-  body {
-    font: 17px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: var(--bg); color: var(--fg);
-  }
-  main { max-width: 880px; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
-  header { text-align: center; margin-bottom: 3rem; }
-  header img { width: 128px; height: 128px; border-radius: 28px; }
-  h1 { font-size: 2.2rem; margin: 1rem 0 0.25rem; }
-  .tagline { color: var(--muted); font-size: 1.15rem; }
-  .buttons { margin-top: 1.5rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap; }
-  .button {
-    display: inline-block; padding: 0.6rem 1.4rem; border-radius: 10px;
-    text-decoration: none; font-weight: 600;
-    background: var(--accent); color: #fff;
-  }
-  .button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
-  .req { color: var(--muted); font-size: 0.85rem; margin-top: 0.6rem; }
-  h2 { font-size: 1.45rem; margin: 3rem 0 0.8rem; }
-  p + p { margin-top: 0.8rem; }
-  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
-  .compare figure { margin: 0; }
-  .compare img { width: 100%; border-radius: 10px; border: 1px solid var(--border); display: block; }
-  .compare figcaption { text-align: center; color: var(--muted); font-size: 0.9rem; margin-top: 0.4rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.9rem; margin-top: 1rem; }
-  .card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1rem 1.1rem;
-  }
-  .card h3 { font-size: 1.02rem; margin-bottom: 0.35rem; }
-  .card p { color: var(--muted); font-size: 0.93rem; }
-  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em; }
-  footer { margin-top: 4rem; color: var(--muted); font-size: 0.88rem; text-align: center; }
-  footer a { color: var(--accent); }
-  a { color: var(--accent); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FITS n' Finish - Physics-first gradient removal for astrophotography</title>
+    <meta name="description" content="Hybrid atmospheric gradient subtraction for macOS and iOS: a deterministic Rayleigh/Mie skyglow model removes the airmass baseline, a low-order surface fit cleans the rest — faint nebulosity survives.">
+    <link rel="icon" type="image/png" href="icon.png">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #1d1d1f;
+            --secondary: #86868b;
+            --accent: #E0A458;
+            --card-bg: #f5f5f7;
+            --border: #d2d2d7;
+            --radius: 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #000000;
+                --fg: #f5f5f7;
+                --secondary: #86868b;
+                --accent: #E0A458;
+                --card-bg: #1c1c1e;
+                --border: #38383a;
+            }
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--fg);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        nav {
+            padding: 24px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+
+        .logo img {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        header {
+            text-align: center;
+            padding: 80px 0 60px;
+        }
+
+        .app-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            display: block;
+            border-radius: 26px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin: 0 0 16px;
+            letter-spacing: -0.015em;
+        }
+
+        .subtitle {
+            font-size: 1.4rem;
+            color: var(--secondary);
+            max-width: 620px;
+            margin: 0 auto 36px;
+        }
+
+        .cta {
+            display: inline-block;
+            background-color: var(--accent);
+            color: #fff;
+            padding: 14px 28px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            text-decoration: none;
+            transition: transform 0.2s, opacity 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(224, 164, 88, 0.4);
+        }
+
+        .cta:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(224, 164, 88, 0.5);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin: 60px 0;
+        }
+
+        .feature-card {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .feature-card h3 {
+            font-size: 1.3rem;
+            margin: 0 0 12px;
+        }
+
+        .feature-card p {
+            color: var(--secondary);
+            margin: 0;
+        }
+
+        .specs {
+            background-color: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 30px;
+            margin: 40px 0;
+            border: 1px solid var(--border);
+        }
+
+        .specs h2 {
+            margin-top: 0;
+        }
+
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .spec-item label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .spec-item span {
+            font-weight: 600;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 0;
+            color: var(--secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            margin-top: 60px;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .prose {
+            max-width: 760px;
+            margin: 0 auto;
+            font-size: 1.1rem;
+        }
+
+        .prose h2 {
+            font-size: 1.8rem;
+            margin: 0 0 12px;
+            letter-spacing: -0.01em;
+        }
+
+        .compare {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin: 32px 0 60px;
+        }
+
+        .compare figure {
+            margin: 0;
+        }
+
+        .compare img {
+            width: 100%;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            display: block;
+        }
+
+        .compare figcaption {
+            text-align: center;
+            color: var(--secondary);
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .prose a, .specs a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        code {
+            font-family: ui-monospace, "SF Mono", Menlo, monospace;
+            font-size: 0.92em;
+        }
+    </style>
 </head>
 <body>
-<main>
-  <header>
-    <img src="icon.png" alt="FITS n' Finish icon" width="128" height="128">
-    <h1>FITS n&rsquo; Finish</h1>
-    <p class="tagline">Physics-first gradient removal for astrophotography, on macOS and iOS.</p>
-    <div class="buttons">
-      <a class="button" href="https://github.com/mabino/fitsnfinish/releases/latest">Download for Mac</a>
-      <a class="button secondary" href="https://github.com/mabino/fitsnfinish">Source on GitHub</a>
+    <div class="container">
+        <nav>
+            <a href="#" class="logo">
+                <img src="icon.png" alt="FITS n' Finish Icon">
+                FITS n&rsquo; Finish
+            </a>
+            <a href="https://bino.io" style="color: var(--secondary); text-decoration: none; font-weight: 500;">Bino.io Apps</a>
+        </nav>
+
+        <header>
+            <img src="icon.png" alt="FITS n' Finish App Icon" class="app-icon">
+            <h1>FITS n&rsquo; Finish</h1>
+            <p class="subtitle">Physics-first gradient removal for astrophotography, on macOS and iOS. A scattering model takes out the skyglow; a stiff low-order surface finishes; faint nebulosity survives.</p>
+            <a href="https://github.com/binoio/fitsnfinish/releases/latest" class="cta">Download for macOS</a>
+        </header>
+
+        <section class="prose">
+            <h2>The sky is not a polynomial</h2>
+            <p>
+                Background extraction tools treat your image as an isolated numerical grid:
+                place enough sample boxes, fit a high-order surface, and hope it doesn&rsquo;t
+                swallow your nebulosity. FITS n&rsquo; Finish starts from the physics instead.
+                A physically motivated atmospheric-scattering model &mdash; driven by where
+                the telescope pointed, when, and through what air &mdash; predicts the shape
+                of the steep, non-linear skyglow baseline; its amplitude is fitted to your
+                frame and subtracted first. What remains is gentle enough that a 1st or
+                2nd-degree surface finishes the job &mdash; and a surface that stiff has
+                almost no freedom to follow faint extended structure. Integrated flux
+                nebula and outer galaxy halos survive, and you can inspect exactly what
+                each stage subtracted.
+            </p>
+        </section>
+
+        <div class="compare">
+            <figure>
+                <img src="before.png" alt="IC 1805 stack before gradient removal: warm skyglow across the frame">
+                <figcaption>Before &mdash; 90&thinsp;min IC&thinsp;1805 stack, warm skyglow cast</figcaption>
+            </figure>
+            <figure>
+                <img src="after.png" alt="Same stack after: neutral, flat background with nebulosity intact">
+                <figcaption>After &mdash; flat, neutral background; the nebula untouched</figcaption>
+            </figure>
+        </div>
+
+        <section class="features">
+            <div class="feature-card">
+                <h3>🎯 Pointing From Your File</h3>
+                <p>WCS plate solutions, RA/Dec cards, capture time and optics geometry set altitude, field of view and field rotation automatically on open.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🌈 Per-Channel Scattering</h3>
+                <p>Rayleigh&rsquo;s &lambda;<sup>&minus;4</sup> law runs per color channel &mdash; the blue sky gradient is modeled steeper than the red, because it is.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🌙 Moonlight</h3>
+                <p>Built-in solar and lunar ephemerides add a Krisciunas&ndash;Schaefer scattering term for the moon&rsquo;s position and phase at capture time.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🏙️ Light Domes</h3>
+                <p>A directional Garstang glow term points at your nearest city, saved with per-site presets.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⏱️ Long Exposures</h3>
+                <p>The prior is averaged across the integration as the target and moon move.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⭐ Star-Proof Fitting</h3>
+                <p>Bright-star masking, halo dilation and sigma-clipped refits keep saturated stars from tilting the surface.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🗂️ All of FITS</h3>
+                <p>Color cubes, multi-HDU files and every fpack tile compression: RICE, GZIP, HCOMPRESS, PLIO, dithered quantization. WCS survives export.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🔍 Inspectable Stages</h3>
+                <p>Toggle between the original, the physical model, the fitted surface and the result &mdash; see the actual surfaces being subtracted.</p>
+            </div>
+            <div class="feature-card">
+                <h3>⚡ Fast</h3>
+                <p>The whole per-pixel pipeline runs as Metal compute kernels, bit-identical to the CPU reference path.</p>
+            </div>
+            <div class="feature-card">
+                <h3>✨ Sparkle 2 Updates</h3>
+                <p>Updates arrive in-app with release notes, signed and notarized.</p>
+            </div>
+        </section>
+
+        <section class="prose">
+            <h2>Fits your workflow</h2>
+            <p>
+                Use it before stretching, alongside Siril or PixInsight &mdash; open a stack
+                (FITS or XISF), remove the gradient, export a 16-bit FITS with the WCS
+                intact, and carry on. Rig-and-site presets import and export as plain
+                JSON, a headless <code>fnfin</code> CLI scripts the same engine, and
+                updates arrive in-app with release notes.
+                <a href="interop.html">Workflow guide for Siril and PixInsight users</a>.
+            </p>
+        </section>
+
+        <section class="specs">
+            <h2>Technical Specifications</h2>
+            <div class="specs-grid">
+                <div class="spec-item">
+                    <label>Platform</label>
+                    <span>macOS 14.0+ (Sonoma, Sequoia, Tahoe) &middot; iOS</span>
+                </div>
+                <div class="spec-item">
+                    <label>Architecture</label>
+                    <span>Apple Silicon &amp; Intel, SwiftUI + Metal</span>
+                </div>
+                <div class="spec-item">
+                    <label>Security</label>
+                    <span>Apple Developer Signed &amp; Notarized</span>
+                </div>
+                <div class="spec-item">
+                    <label>Formats</label>
+                    <span>FITS (incl. fpack), XISF in; 16-bit FITS out</span>
+                </div>
+            </div>
+            <p style="margin-top: 20px; color: var(--secondary); font-size: 0.95rem;">
+                <a href="https://github.com/binoio/fitsnfinish">Source on GitHub</a> &middot;
+                <a href="https://github.com/binoio/fitsnfinish/releases">Releases</a> &middot;
+                <a href="https://github.com/binoio/fitsnfinish/blob/main/CHANGELOG.md">Changelog</a> &middot;
+                <a href="https://github.com/binoio/fitsnfinish/blob/main/fitsnfinish.md">The math</a> &middot;
+                <a href="appcast.xml">Update feed</a>
+            </p>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 Michael Bino. Built with Swift, SwiftUI &amp; Metal. MIT license. Part of <a href="https://bino.io">Bino.io Apps</a>.</p>
+        </footer>
     </div>
-    <p class="req">macOS 14 or later &middot; notarized &middot; auto-updates via Sparkle &middot; MIT license</p>
-  </header>
-
-  <h2>The sky is not a polynomial</h2>
-  <p>
-    Background extraction tools treat your image as an isolated numerical grid:
-    place enough sample boxes, fit a high-order surface, and hope it doesn&rsquo;t
-    swallow your nebulosity. FITS n&rsquo; Finish starts from the physics instead.
-    A physically motivated atmospheric-scattering model &mdash; driven by where
-    the telescope pointed, when, and through what air &mdash; predicts the shape
-    of the steep, non-linear skyglow baseline; its amplitude is fitted to your
-    frame and subtracted first. What remains is gentle enough that a 1st or
-    2nd-degree surface finishes the job &mdash; and a surface that stiff has
-    almost no freedom to follow faint extended structure. Integrated flux
-    nebula and outer galaxy halos survive, and you can inspect exactly what
-    each stage subtracted.
-  </p>
-
-  <div class="compare">
-    <figure>
-      <img src="before.png" alt="IC 1805 stack before gradient removal: warm skyglow across the frame">
-      <figcaption>Before &mdash; 90&thinsp;min IC&thinsp;1805 stack, warm skyglow cast</figcaption>
-    </figure>
-    <figure>
-      <img src="after.png" alt="Same stack after: neutral, flat background with nebulosity intact">
-      <figcaption>After &mdash; flat, neutral background; the nebula untouched</figcaption>
-    </figure>
-  </div>
-
-  <h2>What the model knows</h2>
-  <div class="grid">
-    <div class="card"><h3>Pointing from your file</h3>
-      <p>WCS plate solutions, RA/Dec cards, capture time, and optics geometry set altitude, field of view, and field rotation automatically on open.</p></div>
-    <div class="card"><h3>Per-channel scattering</h3>
-      <p>Rayleigh&rsquo;s &lambda;<sup>&minus;4</sup> law runs per color channel &mdash; the blue sky gradient is modeled steeper than the red, because it is.</p></div>
-    <div class="card"><h3>Moonlight</h3>
-      <p>Built-in solar and lunar ephemerides add a Krisciunas&ndash;Schaefer scattering term for the moon&rsquo;s position and phase at capture time.</p></div>
-    <div class="card"><h3>Light domes</h3>
-      <p>A directional Garstang glow term points at your nearest city, saved with per-site presets.</p></div>
-    <div class="card"><h3>Long exposures</h3>
-      <p>The prior is averaged across the integration as the target and moon move.</p></div>
-    <div class="card"><h3>Star-proof fitting</h3>
-      <p>Bright-star masking, halo dilation, and sigma-clipped refits keep saturated stars from tilting the surface.</p></div>
-    <div class="card"><h3>All of FITS</h3>
-      <p>Color cubes, multi-HDU files, and every fpack tile compression: RICE, GZIP, HCOMPRESS, PLIO, dithered quantization. WCS survives export.</p></div>
-    <div class="card"><h3>Inspectable stages</h3>
-      <p>Toggle between the original, the physical model, the fitted surface, and the result &mdash; see the actual surfaces being subtracted.</p></div>
-    <div class="card"><h3>Fast</h3>
-      <p>The whole per-pixel pipeline runs as Metal compute kernels, bit-identical to the CPU reference path.</p></div>
-  </div>
-
-  <h2>Fits your workflow</h2>
-  <p>
-    Use it before stretching, alongside Siril or PixInsight &mdash; open a stack
-    (FITS or XISF), remove the gradient, export a 16-bit FITS with the WCS
-    intact, and carry on. Rig-and-site presets import and export as plain
-    JSON, a headless <code>fnfin</code> CLI scripts the same engine, and
-    updates arrive in-app with release notes.
-    <a href="interop.html">Workflow guide for Siril and PixInsight users</a>.
-  </p>
-
-  <footer>
-    <p>
-      <a href="https://github.com/mabino/fitsnfinish">GitHub</a> &middot;
-      <a href="https://github.com/mabino/fitsnfinish/releases">Releases</a> &middot;
-      <a href="https://github.com/mabino/fitsnfinish/blob/main/CHANGELOG.md">Changelog</a> &middot;
-      <a href="appcast.xml">Update feed</a>
-    </p>
-    <p>&copy; 2026 Michael Bino &middot; MIT license</p>
-  </footer>
-</main>
 </body>
 </html>

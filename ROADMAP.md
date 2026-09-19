@@ -55,7 +55,7 @@ The 1.x core list is complete.
 The 2.x smarter-physics list is complete.
 
 - **Project page** *(0.4.0, the 2.5 milestone)* — live at
-  [mabino.github.io/fitsnfinish](https://mabino.github.io/fitsnfinish/):
+  [binoio.github.io/fitsnfinish](https://binoio.github.io/fitsnfinish/):
   a real before/after render from the pipeline, the physics-first story,
   features, and downloads.
 - **Reach** *(0.4.0, the 3.x list)* —

@@ -293,7 +293,7 @@ struct SettingsView: View {
                     ) as? String ?? "dev")
                 }
                 Link("Source & documentation",
-                     destination: URL(string: "https://github.com/mabino/fitsnfinish")!)
+                     destination: URL(string: "https://github.com/binoio/fitsnfinish")!)
             }
         }
         .formStyle(.grouped)
