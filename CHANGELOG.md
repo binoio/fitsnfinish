@@ -4,6 +4,15 @@ Release notes for each version. The HTML twins under `ReleaseNotes/` are
 embedded into the Sparkle appcast by `Scripts/release.sh`, so this content is
 what users see in the in-app update dialog.
 
+## 0.4.5 — 2026-09-18
+
+- **Fixed: crash on launch.** 0.4.4 aborted immediately on open when
+  installed anywhere but the machine that built it. The Metal shader was
+  being located through an absolute build-directory path instead of the app
+  bundle; the app now finds its resources relative to wherever the `.app`
+  lives (`~/Applications`, `/Applications`, or elsewhere) and falls back to
+  the CPU pipeline rather than crashing if they are ever missing.
+
 ## 0.4.4 — 2026-08-23
 
 - **Get Info window (⌘I).** A new inspector shows the loaded image's

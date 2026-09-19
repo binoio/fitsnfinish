@@ -63,7 +63,10 @@ targets.append(
             "fitsnfinish.md",
         ],
         sources: ["App"],
-        resources: [.process("Metal/SubtractEngine.metal")],
+        // Copied verbatim: the app compiles the shader at runtime, so the
+        // build never needs the separately-installed Metal toolchain that
+        // `.process` would require.
+        resources: [.copy("Metal/SubtractEngine.metal")],
         linkerSettings: [
             .unsafeFlags(
                 ["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"],

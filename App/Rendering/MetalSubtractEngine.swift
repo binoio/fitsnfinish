@@ -77,6 +77,9 @@ final class MetalSubtractEngine: @unchecked Sendable {
         }
     }
 
+    /// SwiftPM names the bundle `<package>_<target>`.
+    static let resourceBundleName = "FitsnFinish_FitsnFinish"
+
     static func loadLibrary(device: MTLDevice) -> MTLLibrary? {
         // Test harnesses point straight at the shader source.
         if let path = ProcessInfo.processInfo.environment["FF_METAL_SOURCE"],
@@ -84,18 +87,24 @@ final class MetalSubtractEngine: @unchecked Sendable {
             return try? device.makeLibrary(source: source, options: nil)
         }
         #if !FF_HARNESS
-        // Xcode-driven builds compile Metal/SubtractEngine.metal into the
-        // module bundle as a metallib…
-        if let url = Bundle.module.url(forResource: "default", withExtension: "metallib"),
+        // Never touch `Bundle.module`: the accessor `swift build` generates
+        // traps when the bundle is not beside the executable or in the
+        // original build tree, which is every installed .app. A missing
+        // bundle means the CPU pipeline runs instead.
+        guard let bundle = ResourceBundleLocator.bundle(named: resourceBundleName) else {
+            return nil
+        }
+        // A precompiled metallib, if a build ever ships one…
+        if let url = bundle.url(forResource: "default", withExtension: "metallib"),
            let library = try? device.makeLibrary(URL: url) {
             return library
         }
-        if let library = try? device.makeDefaultLibrary(bundle: Bundle.module) {
+        if let library = try? device.makeDefaultLibrary(bundle: bundle) {
             return library
         }
-        // …while plain `swift build` ships the raw source; compile it at
-        // runtime instead.
-        if let url = Bundle.module.url(forResource: "SubtractEngine", withExtension: "metal"),
+        // …otherwise the bundle carries the raw source; compile it at
+        // runtime.
+        if let url = bundle.url(forResource: "SubtractEngine", withExtension: "metal"),
            let source = try? String(contentsOf: url, encoding: .utf8) {
             return try? device.makeLibrary(source: source, options: nil)
         }

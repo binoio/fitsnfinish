@@ -44,10 +44,14 @@ fi
 [[ -f "$ROOT/Support/Icons/AppIcon.icns" ]] \
   && cp "$ROOT/Support/Icons/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 
-# SwiftPM resource bundle (compiled Metal library) → Contents/Resources so
-# Bundle.module resolves inside the app.
-for bundle in "$BIN_DIR"/FitsnFinish_*.bundle; do
-  [[ -e "$bundle" ]] && cp -R "$bundle" "$APP/Contents/Resources/"
-done
+# SwiftPM resource bundle (the Metal shader source) → Contents/Resources,
+# where ResourceBundleLocator looks for it relative to the .app. Copy only the
+# app's own bundle: a prior `swift test` leaves the fixtures bundle beside it.
+RESOURCE_BUNDLE="$BIN_DIR/FitsnFinish_FitsnFinish.bundle"
+if [[ -d "$RESOURCE_BUNDLE" ]]; then
+  cp -R "$RESOURCE_BUNDLE" "$APP/Contents/Resources/"
+else
+  echo "warning: $RESOURCE_BUNDLE missing; GPU pipeline will be unavailable" >&2
+fi
 
 echo "Built: $APP"
