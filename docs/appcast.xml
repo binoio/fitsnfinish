@@ -3,6 +3,20 @@
     <channel>
         <title>FITS n' Finish</title>
         <item>
+            <title>0.4.5</title>
+            <pubDate>Fri, 18 Sep 2026 22:49:33 -0400</pubDate>
+            <sparkle:version>36</sparkle:version>
+            <sparkle:shortVersionString>0.4.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description><![CDATA[<h2>FITS n' Finish 0.4.5</h2>
+<ul>
+<li><b>Fixed: crash on launch.</b> 0.4.4 aborted immediately on open when installed anywhere but the machine that built it. The Metal shader was being located through an absolute build-directory path instead of the app bundle; the app now finds its resources relative to wherever the <code>.app</code> lives (<code>~/Applications</code>, <code>/Applications</code>, or elsewhere) and falls back to the CPU pipeline rather than crashing if they are ever missing.</li>
+</ul>
+]]></description>
+            <enclosure url="https://github.com/binoio/fitsnfinish/releases/download/v0.4.5/FitsnFinish-0.4.5.zip" length="3111875" type="application/octet-stream" sparkle:edSignature="RvxS+mg423wpMT55rxVNkbALIuEKWHZsUYq/JApMlktmYdh7giVGZh979WhRu+6jQ+paZXUoOiBu+8QT3abkCw=="/>
+        </item>
+        <item>
             <title>0.4.4</title>
             <pubDate>Sun, 23 Aug 2026 22:31:28 -0400</pubDate>
             <sparkle:version>31</sparkle:version>
@@ -32,20 +46,6 @@
 </ul>
 ]]></description>
             <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.4.3/FitsnFinish-0.4.3.zip" length="3028419" type="application/octet-stream" sparkle:edSignature="l5ior2LjMdqpSo0zzeCmAyUuyc7bIYiuHFkf11Lx7/+PC1J7jbRcl3iW2p9kIQlQBugnT7HjI0g0MnibOeNXDA=="/>
-        </item>
-        <item>
-            <title>0.4.2</title>
-            <pubDate>Sun, 23 Aug 2026 12:45:31 -0400</pubDate>
-            <sparkle:version>27</sparkle:version>
-            <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description><![CDATA[<h2>FITS n' Finish 0.4.2</h2>
-<ul>
-<li><b>macOS Location prompt trigger.</b> Fixed macOS CoreLocation flow to explicitly trigger the system authorization dialog and location updates via <code>startUpdatingLocation()</code>.</li>
-</ul>
-]]></description>
-            <enclosure url="https://github.com/mabino/fitsnfinish/releases/download/v0.4.2/FitsnFinish-0.4.2.zip" length="3020794" type="application/octet-stream" sparkle:edSignature="U7h7uvh/WbCa4SPtPJcw7HxOly7wsyY6hgGi3Gbk7lGn+t8gMeFINSXGBln8F7gDNgpZoWjM92GMcCItqlIvAg=="/>
         </item>
     </channel>
 </rss>
